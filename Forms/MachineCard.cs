@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Windows.Forms;
 using System.ComponentModel;
 using goodwin_winForm.Models;
+using System.IO;
 
 namespace goodwin_winForm.Forms
 {
@@ -62,6 +63,8 @@ namespace goodwin_winForm.Forms
             lblLocation = new Label();
             lblNextMaintenance = new Label();
             statusPanel = new Panel();
+            picMachineImage = new PictureBox();
+            ((ISupportInitialize)picMachineImage).BeginInit();
             SuspendLayout();
             // 
             // lblName
@@ -128,11 +131,21 @@ namespace goodwin_winForm.Forms
             // 
             statusPanel.BackColor = Color.Green;
             statusPanel.BorderStyle = BorderStyle.FixedSingle;
-            statusPanel.Location = new Point(249, 66);
+            statusPanel.Location = new Point(279, 66);
             statusPanel.Margin = new Padding(3, 4, 3, 4);
             statusPanel.Name = "statusPanel";
-            statusPanel.Size = new Size(119, 23);
+            statusPanel.Size = new Size(120, 25);
             statusPanel.TabIndex = 6;
+            // 
+            // picMachineImage
+            // 
+            picMachineImage.BorderStyle = BorderStyle.FixedSingle;
+            picMachineImage.Location = new Point(279, 104);
+            picMachineImage.Name = "picMachineImage";
+            picMachineImage.Size = new Size(119, 119);
+            picMachineImage.SizeMode = PictureBoxSizeMode.Zoom;
+            picMachineImage.TabIndex = 7;
+            picMachineImage.TabStop = false;
             // 
             // MachineCard
             // 
@@ -146,12 +159,14 @@ namespace goodwin_winForm.Forms
             Controls.Add(lblLocation);
             Controls.Add(lblNextMaintenance);
             Controls.Add(statusPanel);
+            Controls.Add(picMachineImage);
             Cursor = Cursors.Hand;
             Margin = new Padding(11, 13, 11, 13);
             Name = "MachineCard";
-            Size = new Size(400, 250);
+            Size = new Size(423, 250);
             Load += MachineCard_Load;
             Click += MachineCard_Click;
+            ((ISupportInitialize)picMachineImage).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -177,6 +192,7 @@ namespace goodwin_winForm.Forms
             lblNextMaintenance.Text = $"Next Maintenance: {_machine.NextMaintenanceDate.ToShortDateString()}";
 
             UpdateStatusColor();
+            LoadMachineImage();
         }
 
         private void UpdateStatusColor()
@@ -200,6 +216,88 @@ namespace goodwin_winForm.Forms
                 case MachineStatus.OutOfService:
                     statusPanel.BackColor = Color.Gray;
                     break;
+            }
+        }
+
+        /// <summary>
+        /// Loads and displays the machine image thumbnail.
+        /// </summary>
+        private void LoadMachineImage()
+        {
+            try
+            {
+                if (!string.IsNullOrEmpty(_machine.ImagePath))
+                {
+                    // Construct the full path from the filename stored in database
+                    string fullImagePath = Path.Combine(@"C:\GoodwinImages\Machines", _machine.ImagePath);
+                    
+                    // Check if the image file exists
+                    if (File.Exists(fullImagePath))
+                    {
+                        using (var image = Image.FromFile(fullImagePath))
+                        {
+                            picMachineImage.Image = new Bitmap(image);
+                        }
+                    }
+                    else
+                    {
+                        // Image file not found, show default image
+                        SetDefaultImage();
+                    }
+                }
+                else
+                {
+                    // No image path specified, show default image
+                    SetDefaultImage();
+                }
+            }
+            catch (Exception ex)
+            {
+                // Error loading image, show default image
+                SetDefaultImage();
+                System.Diagnostics.Debug.WriteLine($"Error loading machine image: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Sets a default placeholder image when no machine image is available.
+        /// </summary>
+        private void SetDefaultImage()
+        {
+            try
+            {
+                // Create a simple placeholder image
+                var placeholderImage = new Bitmap(119, 119);
+                using (var graphics = Graphics.FromImage(placeholderImage))
+                {
+                    graphics.Clear(Color.LightGray);
+                    
+                    // Draw a simple machine icon
+                    using (var pen = new Pen(Color.DarkGray, 2))
+                    {
+                        // Draw a simple rectangle representing a machine
+                        graphics.DrawRectangle(pen, 20, 20, 79, 59);
+                        
+                        // Draw some lines to represent machine parts
+                        graphics.DrawLine(pen, 30, 35, 89, 35);
+                        graphics.DrawLine(pen, 30, 50, 89, 50);
+                        graphics.DrawLine(pen, 30, 65, 89, 65);
+                    }
+                    
+                    // Add text
+                    using (var font = new Font("Arial", 8, FontStyle.Bold))
+                    using (var brush = new SolidBrush(Color.DarkGray))
+                    {
+                        graphics.DrawString("No Image", font, brush, 35, 85);
+                    }
+                }
+                
+                picMachineImage.Image = placeholderImage;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error creating placeholder image: {ex.Message}");
+                picMachineImage.Image = null;
             }
         }
 
@@ -242,6 +340,7 @@ namespace goodwin_winForm.Forms
         private Label lblLocation;
         private Label lblNextMaintenance;
         private Panel statusPanel;
+        private PictureBox picMachineImage;
 
         private void MachineCard_Load(object sender, EventArgs e)
         {
