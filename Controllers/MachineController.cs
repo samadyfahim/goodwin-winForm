@@ -73,6 +73,46 @@ namespace goodwin_winForm.Controllers
         }
 
         /// <summary>
+        /// Updates an existing machine in the system asynchronously.
+        /// This method validates the machine data before updating it in the database.
+        /// Used by the EditMachineForm to update existing machine entries.
+        /// </summary>
+        /// <param name="machine">The machine object to update in the system.</param>
+        /// <returns>True if the machine was successfully updated; otherwise, false.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when machine is null.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when the database operation fails.</exception>
+        public async Task<bool> UpdateMachineAsync(Machine machine)
+        {
+            if (machine == null)
+                throw new ArgumentNullException(nameof(machine));
+
+            // Add debugging information
+            System.Diagnostics.Debug.WriteLine($"Updating machine: ID={machine.MachineId}, Name={machine.Name}, Serial={machine.SerialNumber}");
+            System.Diagnostics.Debug.WriteLine($"Machine details: Model={machine.Model}, Manufacturer={machine.Manufacturer}");
+            System.Diagnostics.Debug.WriteLine($"Dates: Installation={machine.InstallationDate}, LastMaintenance={machine.LastMaintenanceDate}, NextMaintenance={machine.NextMaintenanceDate}");
+
+            if (!await ValidateMachineDataAsync(machine))
+            {
+                System.Diagnostics.Debug.WriteLine("Machine validation failed");
+                return false;
+            }
+
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("Calling repository UpdateMachineAsync...");
+                await _machineRepository.UpdateMachineAsync(machine);
+                System.Diagnostics.Debug.WriteLine("Machine updated successfully");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error updating machine: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+                throw new InvalidOperationException("Failed to update machine", ex);
+            }
+        }
+
+        /// <summary>
         /// Validates machine data according to business rules before saving.
         /// This method ensures that all required fields are present and valid,
         /// and checks for duplicate serial numbers to maintain data integrity.
@@ -89,29 +129,54 @@ namespace goodwin_winForm.Controllers
         public async Task<bool> ValidateMachineDataAsync(Machine machine)
         {
             if (machine == null)
+            {
+                System.Diagnostics.Debug.WriteLine("Validation failed: Machine is null");
                 return false;
+            }
 
             // Validate required fields
             if (string.IsNullOrWhiteSpace(machine.Name))
+            {
+                System.Diagnostics.Debug.WriteLine("Validation failed: Name is empty");
                 return false;
+            }
 
             if (string.IsNullOrWhiteSpace(machine.SerialNumber))
+            {
+                System.Diagnostics.Debug.WriteLine("Validation failed: SerialNumber is empty");
                 return false;
+            }
 
             if (string.IsNullOrWhiteSpace(machine.Model))
+            {
+                System.Diagnostics.Debug.WriteLine("Validation failed: Model is empty");
                 return false;
+            }
 
             if (string.IsNullOrWhiteSpace(machine.Manufacturer))
+            {
+                System.Diagnostics.Debug.WriteLine("Validation failed: Manufacturer is empty");
                 return false;
+            }
 
             // Validate dates
             if (machine.InstallationDate > DateTime.Today)
+            {
+                System.Diagnostics.Debug.WriteLine($"Validation failed: InstallationDate {machine.InstallationDate} is in the future");
                 return false;
+            }
 
-            if (machine.NextMaintenanceDate < machine.LastMaintenanceDate)
-                return false;
+            // Only validate maintenance dates if they are not default values
+            if (machine.LastMaintenanceDate != DateTime.MinValue && machine.NextMaintenanceDate != DateTime.MinValue)
+            {
+                if (machine.NextMaintenanceDate < machine.LastMaintenanceDate)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Validation failed: NextMaintenanceDate {machine.NextMaintenanceDate} is before LastMaintenanceDate {machine.LastMaintenanceDate}");
+                    return false;
+                }
+            }
 
-            // Check for duplicate serial number
+            // Check for duplicate serial number (excluding the current machine being updated)
             try
             {
                 var existingMachines = await _machineRepository.GetAllMachinesAsync();
@@ -120,14 +185,20 @@ namespace goodwin_winForm.Controllers
                     m.MachineId != machine.MachineId);
                 
                 if (duplicateSerial)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Validation failed: Duplicate serial number found: {machine.SerialNumber}");
                     return false;
+                }
             }
-            catch
+            catch (Exception ex)
             {
-                // If we can't check for duplicates, assume it's valid
+                // Log the exception for debugging
+                System.Diagnostics.Debug.WriteLine($"Error checking for duplicate serial numbers: {ex.Message}");
+                // If we can't check for duplicates, assume it's valid to avoid blocking updates
                 return true;
             }
 
+            System.Diagnostics.Debug.WriteLine("Machine validation passed successfully");
             return true;
         }
     }

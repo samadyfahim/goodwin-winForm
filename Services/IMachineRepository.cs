@@ -6,5 +6,6 @@ namespace goodwin_winForm.Services
     {
         Task<IEnumerable<Machine>> GetAllMachinesAsync();
         Task<Machine> AddMachineAsync(Machine machine);
+        Task<Machine> UpdateMachineAsync(Machine machine);
     }
 } 

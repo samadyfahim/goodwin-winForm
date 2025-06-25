@@ -167,8 +167,19 @@ namespace goodwin_winForm.Forms
                 return;
             }
 
-            // TODO: Open Edit Machine Form
-            ShowInfoMessage($"Edit Machine: {selectedMachine.Name}");
+            try
+            {
+                var editMachineForm = new EditMachineForm(_machineController, selectedMachine);
+                if (editMachineForm.ShowDialog() == DialogResult.OK)
+                {
+                    LoadMachines(); // Refresh the list after editing
+                    ShowSuccessMessage("Machine updated successfully!");
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowErrorMessage($"Error editing machine: {ex.Message}");
+            }
         }
 
         /// <summary>

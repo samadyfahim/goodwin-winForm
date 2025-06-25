@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using goodwin_winForm.Models;
+using Microsoft.Data.SqlClient;
 
 namespace goodwin_winForm.Services
 {
@@ -33,11 +34,25 @@ namespace goodwin_winForm.Services
         /// </remarks>
         public async Task<IEnumerable<Machine>> GetAllMachinesAsync()
         {
-            return await _context.Machines
-                .Include(m => m.MaintenanceRecords)
-                .Include(m => m.Alerts.Where(a => a.Status == AlertStatus.Active))
-                .OrderBy(m => m.Name)
-                .ToListAsync();
+            try
+            {
+                // Test database connection first
+                if (!await _context.Database.CanConnectAsync())
+                {
+                    throw new InvalidOperationException("Cannot connect to database");
+                }
+                
+                return await _context.Machines
+                    .Include(m => m.MaintenanceRecords)
+                    .Include(m => m.Alerts.Where(a => a.Status == AlertStatus.Active))
+                    .OrderBy(m => m.Name)
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"GetAllMachinesAsync failed: {ex.Message}");
+                throw;
+            }
         }
 
         /// <summary>
@@ -60,6 +75,98 @@ namespace goodwin_winForm.Services
             _context.Machines.Add(machine);
             await _context.SaveChangesAsync();
             return machine;
+        }
+
+        /// <summary>
+        /// Updates an existing machine in the database asynchronously.
+        /// This method updates the machine data while preserving creation timestamp.
+        /// </summary>
+        /// <param name="machine">The machine object to update in the database.</param>
+        /// <returns>The updated machine with updated timestamp.</returns>
+        /// <remarks>
+        /// Automatically sets:
+        /// - UpdatedAt timestamp to current date/time
+        /// Preserves the original CreatedAt timestamp.
+        /// </remarks>
+        public async Task<Machine> UpdateMachineAsync(Machine machine)
+        {
+            System.Diagnostics.Debug.WriteLine($"Repository: Starting update for machine ID {machine.MachineId}");
+            
+            if (machine.MachineId <= 0)
+            {
+                throw new ArgumentException("Machine ID must be greater than 0", nameof(machine));
+            }
+            
+            machine.UpdatedAt = DateTime.Now;
+            
+            try
+            {
+                // Use a more explicit approach to avoid tracking issues
+                var existingMachine = await _context.Machines
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(m => m.MachineId == machine.MachineId);
+                
+                if (existingMachine == null)
+                {
+                    throw new InvalidOperationException($"Machine with ID {machine.MachineId} not found");
+                }
+                
+                System.Diagnostics.Debug.WriteLine($"Repository: Found existing machine, updating values");
+                
+                // Update the machine using raw SQL to avoid any tracking issues
+                var sql = @"
+                    UPDATE Machines 
+                    SET Name = @Name, Description = @Description, SerialNumber = @SerialNumber,
+                        Model = @Model, Manufacturer = @Manufacturer, InstallationDate = @InstallationDate,
+                        Status = @Status, Location = @Location, Department = @Department,
+                        LastMaintenanceDate = @LastMaintenanceDate, NextMaintenanceDate = @NextMaintenanceDate,
+                        MaintenanceIntervalDays = @MaintenanceIntervalDays, Notes = @Notes,
+                        ImagePath = @ImagePath, UpdatedAt = @UpdatedAt
+                    WHERE MachineId = @MachineId";
+                
+                var parameters = new[]
+                {
+                    new Microsoft.Data.SqlClient.SqlParameter("@MachineId", machine.MachineId),
+                    new Microsoft.Data.SqlClient.SqlParameter("@Name", machine.Name),
+                    new Microsoft.Data.SqlClient.SqlParameter("@Description", (object)machine.Description ?? DBNull.Value),
+                    new Microsoft.Data.SqlClient.SqlParameter("@SerialNumber", machine.SerialNumber),
+                    new Microsoft.Data.SqlClient.SqlParameter("@Model", machine.Model),
+                    new Microsoft.Data.SqlClient.SqlParameter("@Manufacturer", (object)machine.Manufacturer ?? DBNull.Value),
+                    new Microsoft.Data.SqlClient.SqlParameter("@InstallationDate", machine.InstallationDate),
+                    new Microsoft.Data.SqlClient.SqlParameter("@Status", (int)machine.Status),
+                    new Microsoft.Data.SqlClient.SqlParameter("@Location", (object)machine.Location ?? DBNull.Value),
+                    new Microsoft.Data.SqlClient.SqlParameter("@Department", (object)machine.Department ?? DBNull.Value),
+                    new Microsoft.Data.SqlClient.SqlParameter("@LastMaintenanceDate", machine.LastMaintenanceDate),
+                    new Microsoft.Data.SqlClient.SqlParameter("@NextMaintenanceDate", machine.NextMaintenanceDate),
+                    new Microsoft.Data.SqlClient.SqlParameter("@MaintenanceIntervalDays", machine.MaintenanceIntervalDays),
+                    new Microsoft.Data.SqlClient.SqlParameter("@Notes", (object)machine.Notes ?? DBNull.Value),
+                    new Microsoft.Data.SqlClient.SqlParameter("@ImagePath", (object)machine.ImagePath ?? DBNull.Value),
+                    new Microsoft.Data.SqlClient.SqlParameter("@UpdatedAt", machine.UpdatedAt)
+                };
+                
+                System.Diagnostics.Debug.WriteLine($"Repository: Executing SQL update...");
+                var rowsAffected = await _context.Database.ExecuteSqlRawAsync(sql, parameters);
+                
+                if (rowsAffected == 0)
+                {
+                    throw new InvalidOperationException($"No rows were updated for machine ID {machine.MachineId}");
+                }
+                
+                System.Diagnostics.Debug.WriteLine($"Repository: SQL update completed successfully, {rowsAffected} rows affected");
+                
+                // Return the updated machine
+                return machine;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Repository: Update failed with error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Repository: Error type: {ex.GetType().Name}");
+                if (ex.InnerException != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Repository: Inner exception: {ex.InnerException.Message}");
+                }
+                throw;
+            }
         }
     }
 } 

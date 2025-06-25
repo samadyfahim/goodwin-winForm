@@ -8,6 +8,7 @@ namespace goodwin_winForm.Controllers
     {
         Task<List<Machine>> GetAllMachinesAsync();
         Task<bool> AddMachineAsync(Machine machine);
+        Task<bool> UpdateMachineAsync(Machine machine);
         Task<bool> ValidateMachineDataAsync(Machine machine);
     }
 } 
