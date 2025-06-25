@@ -117,16 +117,16 @@ namespace goodwin_winForm.Controllers
         /// - PIN length must be between MIN_PIN_LENGTH and MAX_PIN_LENGTH
         /// - PIN must contain only numeric digits
         /// </remarks>
-        public async Task<bool> IsValidPinFormatAsync(string pin)
+        public Task<bool> IsValidPinFormatAsync(string pin)
         {
             if (string.IsNullOrWhiteSpace(pin))
-                return false;
+                return Task.FromResult(false);
 
             if (pin.Length < MIN_PIN_LENGTH || pin.Length > MAX_PIN_LENGTH)
-                return false;
+                return Task.FromResult(false);
 
             // Check if PIN contains only digits (optional - you can modify this requirement)
-            return pin.All(char.IsDigit);
+            return Task.FromResult(pin.All(char.IsDigit));
         }
 
         /// <summary>

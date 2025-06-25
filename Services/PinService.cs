@@ -108,9 +108,9 @@ namespace goodwin_winForm.Services
         /// Used during application startup to determine if the user should be prompted
         /// to set an initial PIN or proceed to login.
         /// </remarks>
-        public async Task<bool> IsPinSetAsync()
+        public Task<bool> IsPinSetAsync()
         {
-            return File.Exists(_pinFilePath);
+            return Task.FromResult(File.Exists(_pinFilePath));
         }
 
         /// <summary>
@@ -170,13 +170,14 @@ namespace goodwin_winForm.Services
         /// Creates the "MachineManagementSystem" directory in the user's ApplicationData folder
         /// if it doesn't already exist. This ensures the PIN file can be created successfully.
         /// </remarks>
-        private async Task EnsureDirectoryExists()
+        private Task EnsureDirectoryExists()
         {
-            string directory = Path.GetDirectoryName(_pinFilePath);
-            if (!Directory.Exists(directory))
+            string? directory = Path.GetDirectoryName(_pinFilePath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
             {
                 Directory.CreateDirectory(directory);
             }
+            return Task.CompletedTask;
         }
     }
 } 
