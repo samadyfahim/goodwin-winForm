@@ -28,7 +28,7 @@ namespace goodwin_winForm
         /// If authentication fails or is cancelled, the application exits.
         /// </remarks>
         [STAThread]
-        static async Task Main()
+        static void Main()
         {
             // To customize application configuration such as set high DPI settings or default font,
             // see https://aka.ms/applicationconfiguration.
@@ -37,14 +37,14 @@ namespace goodwin_winForm
             // Set up dependency injection for all services and controllers
             var host = CreateHostBuilder().Build();
 
-            // Show login form and initialize database in parallel for better performance
+            // Show login form and initialize database
             using (var scope = host.Services.CreateScope())
             {
                 var authController = scope.ServiceProvider.GetRequiredService<IAuthController>();
                 var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 
-                // Start database initialization in background
-                var databaseTask = DatabaseService.InitializeDatabaseAsync(context);
+                // Initialize database synchronously
+                DatabaseService.InitializeDatabaseAsync(context).Wait();
                 
                 // Show login form
                 using (var loginForm = new LoginForm(authController))
@@ -55,9 +55,6 @@ namespace goodwin_winForm
                         return;
                     }
                 }
-                
-                // Wait for database initialization to complete
-                await databaseTask;
             }
 
             // Run the application with controllers
