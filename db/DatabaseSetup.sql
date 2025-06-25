@@ -32,9 +32,17 @@ BEGIN
         NextMaintenanceDate DATETIME2 NOT NULL,
         MaintenanceIntervalDays INT NOT NULL DEFAULT 30,
         Notes NVARCHAR(500) NULL,
+        ImagePath NVARCHAR(500) NULL,
         CreatedAt DATETIME2 NOT NULL DEFAULT GETDATE(),
         UpdatedAt DATETIME2 NOT NULL DEFAULT GETDATE()
     );
+END
+GO
+
+-- Add ImagePath column to existing Machines table if it doesn't exist
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Machines') AND name = 'ImagePath')
+BEGIN
+    ALTER TABLE Machines ADD ImagePath NVARCHAR(500) NULL;
 END
 GO
 
