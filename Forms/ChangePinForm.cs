@@ -46,9 +46,6 @@ namespace goodwin_winForm.Forms
             this.CancelButton = btnCancel;
             this.Text = "Change PIN";
             
-            // Touch-friendly form size
-            this.ClientSize = new System.Drawing.Size(400, 500);
-            
             // Set PIN requirements text
             lblRequirements.Text = _authController.GetPinRequirements();
             
@@ -85,67 +82,82 @@ namespace goodwin_winForm.Forms
             // 
             // lblCurrentPin
             // 
+            lblCurrentPin.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
             lblCurrentPin.Location = new Point(50, 90);
             lblCurrentPin.Name = "lblCurrentPin";
-            lblCurrentPin.Size = new Size(100, 23);
+            lblCurrentPin.Size = new Size(150, 25);
             lblCurrentPin.TabIndex = 7;
+            lblCurrentPin.Text = "Current PIN:";
             // 
             // txtCurrentPin
             // 
-            txtCurrentPin.Location = new Point(50, 130);
+            txtCurrentPin.Font = new Font("Segoe UI", 12F);
+            txtCurrentPin.Location = new Point(50, 120);
             txtCurrentPin.MaxLength = 10;
             txtCurrentPin.Name = "txtCurrentPin";
             txtCurrentPin.PasswordChar = '*';
-            txtCurrentPin.Size = new Size(100, 34);
+            txtCurrentPin.Size = new Size(200, 34);
             txtCurrentPin.TabIndex = 0;
             // 
             // lblNewPin
             // 
-            lblNewPin.Location = new Point(50, 190);
+            lblNewPin.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
+            lblNewPin.Location = new Point(50, 180);
             lblNewPin.Name = "lblNewPin";
-            lblNewPin.Size = new Size(100, 23);
+            lblNewPin.Size = new Size(150, 25);
             lblNewPin.TabIndex = 6;
+            lblNewPin.Text = "New PIN:";
             // 
             // txtNewPin
             // 
-            txtNewPin.Location = new Point(50, 230);
+            txtNewPin.Font = new Font("Segoe UI", 12F);
+            txtNewPin.Location = new Point(50, 210);
             txtNewPin.MaxLength = 10;
             txtNewPin.Name = "txtNewPin";
             txtNewPin.PasswordChar = '*';
-            txtNewPin.Size = new Size(100, 34);
+            txtNewPin.Size = new Size(200, 34);
             txtNewPin.TabIndex = 1;
             // 
             // lblConfirmPin
             // 
-            lblConfirmPin.Location = new Point(50, 290);
+            lblConfirmPin.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
+            lblConfirmPin.Location = new Point(50, 270);
             lblConfirmPin.Name = "lblConfirmPin";
-            lblConfirmPin.Size = new Size(100, 23);
+            lblConfirmPin.Size = new Size(150, 25);
             lblConfirmPin.TabIndex = 5;
+            lblConfirmPin.Text = "Confirm PIN:";
             // 
             // txtConfirmPin
             // 
-            txtConfirmPin.Location = new Point(50, 330);
+            txtConfirmPin.Font = new Font("Segoe UI", 12F);
+            txtConfirmPin.Location = new Point(50, 300);
             txtConfirmPin.MaxLength = 10;
             txtConfirmPin.Name = "txtConfirmPin";
             txtConfirmPin.PasswordChar = '*';
-            txtConfirmPin.Size = new Size(100, 34);
+            txtConfirmPin.Size = new Size(200, 34);
             txtConfirmPin.TabIndex = 2;
             // 
             // btnSave
             // 
-            btnSave.Location = new Point(50, 430);
+            btnSave.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
+            btnSave.Location = new Point(50, 380);
             btnSave.Name = "btnSave";
-            btnSave.Size = new Size(75, 23);
+            btnSave.Size = new Size(100, 40);
             btnSave.TabIndex = 3;
+            btnSave.Text = "Save";
+            btnSave.UseVisualStyleBackColor = true;
             btnSave.Click += btnSave_Click;
             // 
             // btnCancel
             // 
             btnCancel.BackColor = Color.FromArgb(128, 128, 128);
-            btnCancel.Location = new Point(210, 430);
+            btnCancel.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
+            btnCancel.ForeColor = Color.White;
+            btnCancel.Location = new Point(170, 380);
             btnCancel.Name = "btnCancel";
-            btnCancel.Size = new Size(75, 23);
+            btnCancel.Size = new Size(100, 40);
             btnCancel.TabIndex = 4;
+            btnCancel.Text = "Cancel";
             btnCancel.UseVisualStyleBackColor = false;
             btnCancel.Click += btnCancel_Click;
             // 
@@ -153,16 +165,16 @@ namespace goodwin_winForm.Forms
             // 
             lblRequirements.Font = new Font("Segoe UI", 10F, FontStyle.Italic);
             lblRequirements.ForeColor = Color.Gray;
-            lblRequirements.Location = new Point(50, 390);
+            lblRequirements.Location = new Point(50, 340);
             lblRequirements.Name = "lblRequirements";
-            lblRequirements.Size = new Size(300, 25);
+            lblRequirements.Size = new Size(300, 30);
             lblRequirements.TabIndex = 0;
             lblRequirements.Text = "PIN requirements";
             lblRequirements.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // ChangePinForm
             // 
-            ClientSize = new Size(885, 547);
+            ClientSize = new Size(400, 500);
             Controls.Add(lblRequirements);
             Controls.Add(btnCancel);
             Controls.Add(btnSave);
