@@ -14,15 +14,18 @@ namespace goodwin_winForm.Controllers
     public class MachineController : IMachineController
     {
         private readonly IMachineRepository _machineRepository;
+        private readonly IAlertController? _alertController;
 
         /// <summary>
         /// Initializes a new instance of the MachineController with the specified machine repository.
         /// </summary>
         /// <param name="machineRepository">The machine repository for data access operations.</param>
+        /// <param name="alertController">The alert controller for creating automatic alerts (optional).</param>
         /// <exception cref="ArgumentNullException">Thrown when machineRepository is null.</exception>
-        public MachineController(IMachineRepository machineRepository)
+        public MachineController(IMachineRepository machineRepository, IAlertController? alertController = null)
         {
             _machineRepository = machineRepository ?? throw new ArgumentNullException(nameof(machineRepository));
+            _alertController = alertController;
         }
 
         /// <summary>
@@ -102,6 +105,7 @@ namespace goodwin_winForm.Controllers
                 System.Diagnostics.Debug.WriteLine("Calling repository UpdateMachineAsync...");
                 await _machineRepository.UpdateMachineAsync(machine);
                 System.Diagnostics.Debug.WriteLine("Machine updated successfully");
+                await CheckAndCreateMaintenanceAlertsAsync(machine);
                 return true;
             }
             catch (Exception ex)
@@ -200,6 +204,43 @@ namespace goodwin_winForm.Controllers
 
             System.Diagnostics.Debug.WriteLine("Machine validation passed successfully");
             return true;
+        }
+
+        /// <summary>
+        /// Checks for maintenance overdue conditions and creates alerts automatically.
+        /// </summary>
+        /// <param name="machine">The machine to check for maintenance alerts.</param>
+        private async Task CheckAndCreateMaintenanceAlertsAsync(Machine machine)
+        {
+            if (_alertController == null)
+                return;
+
+            try
+            {
+                // Check if maintenance is overdue (NextMaintenanceDate < Today)
+                if (machine.NextMaintenanceDate != DateTime.MinValue && machine.NextMaintenanceDate < DateTime.Today)
+                {
+                    await _alertController.CreateMaintenanceOverdueAlertAsync(
+                        machine.MachineId, 
+                        machine.Name, 
+                        machine.NextMaintenanceDate);
+                }
+                // Check if maintenance is due soon (within 7 days)
+                else if (machine.NextMaintenanceDate != DateTime.MinValue && 
+                         machine.NextMaintenanceDate <= DateTime.Today.AddDays(7) &&
+                         machine.NextMaintenanceDate >= DateTime.Today)
+                {
+                    await _alertController.CreateMaintenanceDueAlertAsync(
+                        machine.MachineId, 
+                        machine.Name, 
+                        machine.NextMaintenanceDate);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log the error but don't fail the machine update
+                System.Diagnostics.Debug.WriteLine($"Error creating maintenance alerts: {ex.Message}");
+            }
         }
     }
 } 

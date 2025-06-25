@@ -93,6 +93,8 @@ namespace goodwin_winForm
                     
                     // Add repository services
                     services.AddScoped<IMachineRepository, MachineRepository>();
+                    services.AddScoped<IMaintenanceRepository, MaintenanceRepository>();
+                    services.AddScoped<IAlertRepository, AlertRepository>();
                     
                     // Add PIN service
                     services.AddSingleton<IPinService, PinService>();
@@ -100,6 +102,8 @@ namespace goodwin_winForm
                     // Add controllers
                     services.AddScoped<IAuthController, AuthController>();
                     services.AddScoped<IMachineController, MachineController>();
+                    services.AddScoped<IMaintenanceController, MaintenanceController>();
+                    services.AddScoped<IAlertController, AlertController>();
                 });
         }
     }

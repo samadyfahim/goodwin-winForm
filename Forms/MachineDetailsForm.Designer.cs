@@ -77,6 +77,7 @@ namespace goodwin_winForm.Forms
             columnAlertTitle = new ColumnHeader();
             columnAlertStatus = new ColumnHeader();
             btnAddMaintenance = new Button();
+            btnAddAlert = new Button();
             btnEditMachine = new Button();
             btnClose = new Button();
             btnRefresh = new Button();
@@ -418,12 +419,12 @@ namespace goodwin_winForm.Forms
             // columnMaintenanceDate
             // 
             columnMaintenanceDate.Text = "Date";
-            columnMaintenanceDate.Width = 80;
+            columnMaintenanceDate.Width = 200;
             // 
             // columnType
             // 
             columnType.Text = "Type";
-            columnType.Width = 100;
+            columnType.Width = 200;
             // 
             // columnTitle
             // 
@@ -433,17 +434,17 @@ namespace goodwin_winForm.Forms
             // columnPerformedBy
             // 
             columnPerformedBy.Text = "Performed By";
-            columnPerformedBy.Width = 120;
+            columnPerformedBy.Width = 200;
             // 
             // columnStatus
             // 
             columnStatus.Text = "Status";
-            columnStatus.Width = 100;
+            columnStatus.Width = 200;
             // 
             // columnCost
             // 
             columnCost.Text = "Cost";
-            columnCost.Width = 80;
+            columnCost.Width = 200;
             // 
             // tabAlerts
             // 
@@ -474,17 +475,17 @@ namespace goodwin_winForm.Forms
             // columnAlertDate
             // 
             columnAlertDate.Text = "Date";
-            columnAlertDate.Width = 80;
+            columnAlertDate.Width = 250;
             // 
             // columnAlertType
             // 
             columnAlertType.Text = "Type";
-            columnAlertType.Width = 120;
+            columnAlertType.Width = 250;
             // 
             // columnSeverity
             // 
             columnSeverity.Text = "Severity";
-            columnSeverity.Width = 80;
+            columnSeverity.Width = 250;
             // 
             // columnAlertTitle
             // 
@@ -494,7 +495,7 @@ namespace goodwin_winForm.Forms
             // columnAlertStatus
             // 
             columnAlertStatus.Text = "Status";
-            columnAlertStatus.Width = 100;
+            columnAlertStatus.Width = 200;
             // 
             // btnAddMaintenance
             // 
@@ -507,13 +508,24 @@ namespace goodwin_winForm.Forms
             btnAddMaintenance.UseVisualStyleBackColor = true;
             btnAddMaintenance.Click += btnAddMaintenance_Click;
             // 
+            // btnAddAlert
+            // 
+            btnAddAlert.Location = new Point(217, 896);
+            btnAddAlert.Margin = new Padding(4, 6, 4, 6);
+            btnAddAlert.Name = "btnAddAlert";
+            btnAddAlert.Size = new Size(157, 56);
+            btnAddAlert.TabIndex = 2;
+            btnAddAlert.Text = "Add Alert";
+            btnAddAlert.UseVisualStyleBackColor = true;
+            btnAddAlert.Click += btnAddAlert_Click;
+            // 
             // btnEditMachine
             // 
-            btnEditMachine.Location = new Point(217, 896);
+            btnEditMachine.Location = new Point(384, 896);
             btnEditMachine.Margin = new Padding(4, 6, 4, 6);
             btnEditMachine.Name = "btnEditMachine";
             btnEditMachine.Size = new Size(157, 56);
-            btnEditMachine.TabIndex = 2;
+            btnEditMachine.TabIndex = 3;
             btnEditMachine.Text = "Edit Machine";
             btnEditMachine.UseVisualStyleBackColor = true;
             btnEditMachine.Click += btnEditMachine_Click;
@@ -524,18 +536,18 @@ namespace goodwin_winForm.Forms
             btnClose.Margin = new Padding(4, 6, 4, 6);
             btnClose.Name = "btnClose";
             btnClose.Size = new Size(157, 56);
-            btnClose.TabIndex = 3;
+            btnClose.TabIndex = 4;
             btnClose.Text = "Close";
             btnClose.UseVisualStyleBackColor = true;
             btnClose.Click += btnClose_Click;
             // 
             // btnRefresh
             // 
-            btnRefresh.Location = new Point(384, 896);
+            btnRefresh.Location = new Point(551, 896);
             btnRefresh.Margin = new Padding(4, 6, 4, 6);
             btnRefresh.Name = "btnRefresh";
             btnRefresh.Size = new Size(157, 56);
-            btnRefresh.TabIndex = 4;
+            btnRefresh.TabIndex = 5;
             btnRefresh.Text = "Refresh";
             btnRefresh.UseVisualStyleBackColor = true;
             btnRefresh.Click += btnRefresh_Click;
@@ -548,6 +560,7 @@ namespace goodwin_winForm.Forms
             Controls.Add(btnRefresh);
             Controls.Add(btnClose);
             Controls.Add(btnEditMachine);
+            Controls.Add(btnAddAlert);
             Controls.Add(btnAddMaintenance);
             Controls.Add(tabControl);
             Margin = new Padding(4, 6, 4, 6);
@@ -596,6 +609,7 @@ namespace goodwin_winForm.Forms
         private System.Windows.Forms.ColumnHeader columnAlertTitle;
         private System.Windows.Forms.ColumnHeader columnAlertStatus;
         private System.Windows.Forms.Button btnAddMaintenance;
+        private System.Windows.Forms.Button btnAddAlert;
         private System.Windows.Forms.Button btnEditMachine;
         private System.Windows.Forms.Button btnClose;
         private System.Windows.Forms.Button btnRefresh;

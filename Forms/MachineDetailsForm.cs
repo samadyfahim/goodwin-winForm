@@ -223,8 +223,50 @@ namespace goodwin_winForm.Forms
 
         private void btnAddMaintenance_Click(object sender, EventArgs e)
         {
-            // TODO: Open Add Maintenance Record Form
-            MessageBox.Show("Add Maintenance Record functionality will be implemented", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            try
+            {
+                // Get the maintenance controller from the service provider
+                var maintenanceController = _serviceProvider.GetRequiredService<IMaintenanceController>();
+
+                // Open the add maintenance form
+                using (var addMaintenanceForm = new AddMaintenanceForm(maintenanceController, _detailedMachine.MachineId, _detailedMachine.Name))
+                {
+                    if (addMaintenanceForm.ShowDialog(this) == DialogResult.OK)
+                    {
+                        // Maintenance record was added successfully, refresh the details
+                        LoadMachineDetails();
+                        ShowSuccessMessage("Maintenance record added successfully!");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowErrorMessage($"Error opening add maintenance form: {ex.Message}");
+            }
+        }
+
+        private void btnAddAlert_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Get the alert controller from the service provider
+                var alertController = _serviceProvider.GetRequiredService<IAlertController>();
+
+                // Open the add alert form
+                using (var addAlertForm = new AddAlertForm(alertController, _detailedMachine.MachineId, _detailedMachine.Name))
+                {
+                    if (addAlertForm.ShowDialog(this) == DialogResult.OK)
+                    {
+                        // Alert was added successfully, refresh the details
+                        LoadMachineDetails();
+                        ShowSuccessMessage("Alert added successfully!");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowErrorMessage($"Error opening add alert form: {ex.Message}");
+            }
         }
 
         private void btnEditMachine_Click(object sender, EventArgs e)
@@ -261,5 +303,6 @@ namespace goodwin_winForm.Forms
             LoadMachineDetails();
         }
 
+       
     }
 } 
