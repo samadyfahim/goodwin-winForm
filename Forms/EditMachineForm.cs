@@ -206,7 +206,7 @@ namespace goodwin_winForm.Forms
                 
                 if (await _machineController.UpdateMachineAsync(_originalMachine))
                 {
-                    ShowSuccessMessage("Machine updated successfully!");
+                    // Machine updated successfully - close form and let parent refresh automatically
                     this.DialogResult = DialogResult.OK;
                     this.Close();
                 }

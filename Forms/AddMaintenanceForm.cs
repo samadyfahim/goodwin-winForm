@@ -85,7 +85,7 @@ namespace goodwin_winForm.Forms
                 
                 if (await _maintenanceController.AddMaintenanceRecordAsync(maintenanceRecord))
                 {
-                    ShowSuccessMessage("Maintenance record added successfully!");
+                    // Maintenance record added successfully - close form and let parent refresh automatically
                     this.DialogResult = DialogResult.OK;
                     this.Close();
                 }

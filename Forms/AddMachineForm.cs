@@ -88,7 +88,7 @@ namespace goodwin_winForm.Forms
                 
                 if (await _machineController.AddMachineAsync(machine))
                 {
-                    ShowSuccessMessage("Machine added successfully!");
+                    // Machine added successfully - close form and let parent refresh automatically
                     this.DialogResult = DialogResult.OK;
                     this.Close();
                 }

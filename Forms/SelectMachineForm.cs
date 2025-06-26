@@ -47,9 +47,6 @@ namespace goodwin_winForm.Forms
             // Touch-friendly form size
             this.ClientSize = new System.Drawing.Size(1000, 700);
 
-            // Setup loading button
-            SetupLoadingButton(btnRefresh, "Refresh");
-
             // Setup flow layout panel for cards
             SetupFlowLayoutPanel();
 
@@ -75,17 +72,12 @@ namespace goodwin_winForm.Forms
         {
             try
             {
-                SetLoadingState(btnRefresh, true, "Loading...");
                 _machines = await _machineController.GetAllMachinesAsync();
                 RefreshMachineCards();
             }
             catch (Exception ex)
             {
                 ShowErrorMessage($"Error loading machines: {ex.Message}");
-            }
-            finally
-            {
-                SetLoadingState(btnRefresh, false);
             }
         }
 
@@ -173,7 +165,6 @@ namespace goodwin_winForm.Forms
                 if (editMachineForm.ShowDialog() == DialogResult.OK)
                 {
                     LoadMachines(); // Refresh the list after editing
-                    ShowSuccessMessage("Machine updated successfully!");
                 }
             }
             catch (Exception ex)
@@ -201,16 +192,6 @@ namespace goodwin_winForm.Forms
             var serviceProvider = scope.ServiceProvider;
             var detailsForm = new MachineDetailsForm(serviceProvider, selectedMachine);
             detailsForm.ShowDialog();
-        }
-
-        /// <summary>
-        /// Handles the refresh button click event.
-        /// </summary>
-        /// <param name="sender">The source of the event.</param>
-        /// <param name="e">Event arguments.</param>
-        private void btnRefresh_Click(object sender, EventArgs e)
-        {
-            LoadMachines();
         }
 
         /// <summary>

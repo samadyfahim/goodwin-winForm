@@ -29,16 +29,27 @@ namespace goodwin_winForm.Forms
         {
             try
             {
-                if (_detailedMachine != null)
+                // Get the machine controller from the service provider
+                var machineController = _serviceProvider.GetRequiredService<IMachineController>();
+                
+                // Reload the machine data from the database
+                var reloadedMachine = await machineController.GetMachineByIdAsync(_machine.MachineId);
+                
+                if (reloadedMachine != null)
                 {
+                    _detailedMachine = reloadedMachine;
                     DisplayMachineInfo();
                     LoadMaintenanceHistory();
                     LoadAlerts();
                 }
+                else
+                {
+                    ShowErrorMessage("Failed to reload machine details. The machine may have been deleted.");
+                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error loading machine details: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                ShowErrorMessage($"Error loading machine details: {ex.Message}");
             }
         }
 
@@ -235,7 +246,6 @@ namespace goodwin_winForm.Forms
                     {
                         // Maintenance record was added successfully, refresh the details
                         LoadMachineDetails();
-                        ShowSuccessMessage("Maintenance record added successfully!");
                     }
                 }
             }
@@ -259,7 +269,6 @@ namespace goodwin_winForm.Forms
                     {
                         // Alert was added successfully, refresh the details
                         LoadMachineDetails();
-                        ShowSuccessMessage("Alert added successfully!");
                     }
                 }
             }
@@ -283,7 +292,6 @@ namespace goodwin_winForm.Forms
                     {
                         // Machine was updated successfully, refresh the details
                         LoadMachineDetails();
-                        ShowSuccessMessage("Machine updated successfully!");
                     }
                 }
             }
@@ -296,11 +304,6 @@ namespace goodwin_winForm.Forms
         private void btnClose_Click(object sender, EventArgs e)
         {
             this.Close();
-        }
-
-        private void btnRefresh_Click(object sender, EventArgs e)
-        {
-            LoadMachineDetails();
         }
 
        

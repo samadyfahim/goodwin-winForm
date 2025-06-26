@@ -32,7 +32,6 @@
             btnAddMachine = new Button();
             btnEditMachine = new Button();
             btnViewDetails = new Button();
-            btnRefresh = new Button();
             lblTitle = new Label();
             flowLayoutPanelMachines = new FlowLayoutPanel();
             logo = new PictureBox();
@@ -78,18 +77,6 @@
             btnViewDetails.Text = "View Details";
             btnViewDetails.UseVisualStyleBackColor = false;
             btnViewDetails.Click += btnViewDetails_Click;
-            // 
-            // btnRefresh
-            // 
-            btnRefresh.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            btnRefresh.Location = new Point(806, 558);
-            btnRefresh.Margin = new Padding(5, 6, 5, 6);
-            btnRefresh.Name = "btnRefresh";
-            btnRefresh.Size = new Size(157, 56);
-            btnRefresh.TabIndex = 4;
-            btnRefresh.Text = "Refresh";
-            btnRefresh.UseVisualStyleBackColor = true;
-            btnRefresh.Click += btnRefresh_Click;
             // 
             // lblTitle
             // 
@@ -147,7 +134,6 @@
             Controls.Add(logo);
             Controls.Add(flowLayoutPanelMachines);
             Controls.Add(lblTitle);
-            Controls.Add(btnRefresh);
             Controls.Add(btnViewDetails);
             Controls.Add(btnEditMachine);
             Controls.Add(btnAddMachine);
@@ -164,7 +150,6 @@
         private System.Windows.Forms.Button btnAddMachine;
         private System.Windows.Forms.Button btnEditMachine;
         private System.Windows.Forms.Button btnViewDetails;
-        private System.Windows.Forms.Button btnRefresh;
         private System.Windows.Forms.Label lblTitle;
         private FlowLayoutPanel flowLayoutPanelMachines;
         private PictureBox logo;

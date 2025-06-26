@@ -48,6 +48,26 @@ namespace goodwin_winForm.Controllers
         }
 
         /// <summary>
+        /// Retrieves a single machine by its ID from the database asynchronously.
+        /// This method is used to get detailed information about a specific machine.
+        /// </summary>
+        /// <param name="machineId">The ID of the machine to retrieve.</param>
+        /// <returns>The machine object if found; otherwise, null.</returns>
+        /// <exception cref="InvalidOperationException">Thrown when the database operation fails.</exception>
+        public async Task<Machine?> GetMachineByIdAsync(int machineId)
+        {
+            try
+            {
+                var machines = await _machineRepository.GetAllMachinesAsync();
+                return machines.FirstOrDefault(m => m.MachineId == machineId);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException("Failed to retrieve machine", ex);
+            }
+        }
+
+        /// <summary>
         /// Adds a new machine to the system asynchronously.
         /// This method validates the machine data before saving it to the database.
         /// Used by the AddMachineForm to create new machine entries.

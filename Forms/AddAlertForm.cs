@@ -90,7 +90,7 @@ namespace goodwin_winForm.Forms
                 
                 if (await _alertController.AddAlertAsync(alert))
                 {
-                    ShowSuccessMessage("Alert added successfully!");
+                    // Alert added successfully - close form and let parent refresh automatically
                     this.DialogResult = DialogResult.OK;
                     this.Close();
                 }

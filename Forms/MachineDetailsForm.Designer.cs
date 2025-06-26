@@ -80,7 +80,6 @@ namespace goodwin_winForm.Forms
             btnAddAlert = new Button();
             btnEditMachine = new Button();
             btnClose = new Button();
-            btnRefresh = new Button();
             tabControl.SuspendLayout();
             tabInfo.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBoxMachine).BeginInit();
@@ -499,6 +498,7 @@ namespace goodwin_winForm.Forms
             // 
             // btnAddMaintenance
             // 
+            btnAddMaintenance = new Button();
             btnAddMaintenance.Location = new Point(19, 896);
             btnAddMaintenance.Margin = new Padding(4, 6, 4, 6);
             btnAddMaintenance.Name = "btnAddMaintenance";
@@ -510,6 +510,7 @@ namespace goodwin_winForm.Forms
             // 
             // btnAddAlert
             // 
+            btnAddAlert = new Button();
             btnAddAlert.Location = new Point(217, 896);
             btnAddAlert.Margin = new Padding(4, 6, 4, 6);
             btnAddAlert.Name = "btnAddAlert";
@@ -521,6 +522,7 @@ namespace goodwin_winForm.Forms
             // 
             // btnEditMachine
             // 
+            btnEditMachine = new Button();
             btnEditMachine.Location = new Point(384, 896);
             btnEditMachine.Margin = new Padding(4, 6, 4, 6);
             btnEditMachine.Name = "btnEditMachine";
@@ -532,6 +534,7 @@ namespace goodwin_winForm.Forms
             // 
             // btnClose
             // 
+            btnClose = new Button();
             btnClose.Location = new Point(1081, 896);
             btnClose.Margin = new Padding(4, 6, 4, 6);
             btnClose.Name = "btnClose";
@@ -541,23 +544,11 @@ namespace goodwin_winForm.Forms
             btnClose.UseVisualStyleBackColor = true;
             btnClose.Click += btnClose_Click;
             // 
-            // btnRefresh
-            // 
-            btnRefresh.Location = new Point(551, 896);
-            btnRefresh.Margin = new Padding(4, 6, 4, 6);
-            btnRefresh.Name = "btnRefresh";
-            btnRefresh.Size = new Size(157, 56);
-            btnRefresh.TabIndex = 5;
-            btnRefresh.Text = "Refresh";
-            btnRefresh.UseVisualStyleBackColor = true;
-            btnRefresh.Click += btnRefresh_Click;
-            // 
             // MachineDetailsForm
             // 
             AutoScaleDimensions = new SizeF(11F, 28F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1257, 970);
-            Controls.Add(btnRefresh);
             Controls.Add(btnClose);
             Controls.Add(btnEditMachine);
             Controls.Add(btnAddAlert);
@@ -612,7 +603,6 @@ namespace goodwin_winForm.Forms
         private System.Windows.Forms.Button btnAddAlert;
         private System.Windows.Forms.Button btnEditMachine;
         private System.Windows.Forms.Button btnClose;
-        private System.Windows.Forms.Button btnRefresh;
         private TextBox txtNotes;
         private PictureBox pictureBoxMachine;
         private System.Windows.Forms.Label lblMachineNameValue;
