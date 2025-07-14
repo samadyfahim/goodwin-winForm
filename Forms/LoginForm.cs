@@ -1,158 +1,163 @@
 ﻿using System;
-using System.Windows.Forms;
-using goodwin_winForm.Controllers;
 using System.Threading.Tasks;
+using System.Windows.Forms;
+using goodwin_winForm.Services;
 
 namespace goodwin_winForm.Forms
 {
     /// <summary>
-    /// Touch-optimized login form for the Machine Management System.
-    /// Provides PIN-based authentication with touch-friendly controls and layout.
+    /// Form for user authentication using PIN.
+    /// Provides a secure login interface with PIN validation.
     /// </summary>
-    public partial class LoginForm : BaseForm
+    public partial class LoginForm : Form
     {
-        private readonly IAuthController _authController;
-        private int maxAttempts = 3;
-        private int currentAttempts = 0;
+        private readonly IPinService _pinService;
 
         /// <summary>
-        /// Initializes a new instance of the LoginForm with the specified authentication controller.
+        /// Initializes a new instance of the LoginForm with the specified PIN service.
         /// </summary>
-        /// <param name="authController">The authentication controller for PIN validation.</param>
-        /// <exception cref="ArgumentNullException">Thrown when authController is null.</exception>
-        public LoginForm(IAuthController authController)
+        /// <param name="pinService">The PIN service for PIN validation and requirements.</param>
+        /// <exception cref="ArgumentNullException">Thrown when pinService is null.</exception>
+        public LoginForm(IPinService pinService)
         {
-            _authController = authController ?? throw new ArgumentNullException(nameof(authController));
             InitializeComponent();
-            SetupForm();
+            _pinService = pinService ?? throw new ArgumentNullException(nameof(pinService));
         }
 
         /// <summary>
-        /// Sets up the form with touch-friendly configuration and PIN requirements.
-        /// </summary>
-        private void SetupForm()
-        {
-            this.AcceptButton = btnLogin;
-            this.CancelButton = btnCancel;
-            this.Text = "Login - Machine Management System";
-
-            // Touch-friendly form size
-            this.ClientSize = new System.Drawing.Size(900, 600);
-
-            // Set PIN requirements text
-            lblRequirements.Text = _authController.GetPinRequirements();
-
-            // Setup loading button
-            SetupLoadingButton(btnLogin, "Login");
-        }
-
-        /// <summary>
-        /// Handles the login button click event with PIN validation.
+        /// Handles the form load event to check if PIN is set and configure the form accordingly.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">Event arguments.</param>
-        private async void btnLogin_Click(object sender, EventArgs e)
+        /// <param name="e">Event data.</param>
+        private async void LoginForm_Load(object sender, EventArgs e)
         {
-            if (!ValidateRequiredField(txtPin, "PIN code"))
-                return;
-
             try
             {
-                SetLoadingState(btnLogin, true, "Validating...");
-
-                // Disable form during validation
-                this.Enabled = false;
-
-                // Use Task.Run to avoid blocking the UI thread
-                var isValid = await Task.Run(async () =>
-                    await _authController.ValidatePinAsync(txtPin.Text.Trim()));
-
-                if (isValid)
+                bool isPinSet = await _pinService.IsPinSetAsync();
+                
+                if (!isPinSet)
                 {
-                    SetLoadingState(btnLogin, true, "Loading...");
-                    this.DialogResult = DialogResult.OK;
-                    this.Close();
+                    // First time setup - show initial PIN setup
+                    lblPin.Text = "Enter PIN (min 4 characters):";
+                    btnLogin.Text = "Set PIN";
+                    txtPin.PasswordChar = '*';
+                    txtPin.MaxLength = 10;
                 }
                 else
                 {
-                    HandleFailedLogin();
+                    // Normal login
+                    lblPin.Text = "Enter PIN:";
+                    btnLogin.Text = "Login";
+                    txtPin.PasswordChar = '*';
+                    txtPin.MaxLength = 10;
                 }
             }
             catch (Exception ex)
             {
-                ShowErrorMessage($"Error during authentication: {ex.Message}");
+                MessageBox.Show($"Error initializing login form: {ex.Message}", "Error", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// Handles the login button click event to validate PIN or set initial PIN.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">Event data.</param>
+        private async void btnLogin_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(txtPin.Text))
+            {
+                MessageBox.Show("Please enter a PIN.", "Validation Error", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            btnLogin.Enabled = false;
+            btnLogin.Text = "Processing...";
+
+            try
+            {
+                bool isPinSet = await _pinService.IsPinSetAsync();
+                
+                if (!isPinSet)
+                {
+                    // First time setup
+                    if (txtPin.Text.Length < 4)
+                    {
+                        MessageBox.Show("PIN must be at least 4 characters long.", "Validation Error", 
+                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        btnLogin.Enabled = true;
+                        btnLogin.Text = "Set PIN";
+                        return;
+                    }
+
+                    await _pinService.SetInitialPinAsync(txtPin.Text.Trim());
+                    MessageBox.Show("Initial PIN set successfully!", "Success", 
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    DialogResult = DialogResult.OK;
+                }
+                else
+                {
+                    // Normal login
+                    if (await _pinService.ValidatePinAsync(txtPin.Text.Trim()))
+                    {
+                        DialogResult = DialogResult.OK;
+                    }
+                    else
+                    {
+                        MessageBox.Show("Invalid PIN. Please try again.", "Authentication Failed", 
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        txtPin.Clear();
+                        txtPin.Focus();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error during authentication: {ex.Message}", "Error", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
             {
-                SetLoadingState(btnLogin, false);
-                this.Enabled = true;
+                btnLogin.Enabled = true;
+                bool isPinSet = await _pinService.IsPinSetAsync();
+                btnLogin.Text = isPinSet ? "Login" : "Set PIN";
             }
         }
 
         /// <summary>
-        /// Handles failed login attempts with attempt counting and user feedback.
-        /// </summary>
-        private void HandleFailedLogin()
-        {
-            currentAttempts++;
-            txtPin.Clear();
-            txtPin.Focus();
-
-            if (currentAttempts >= maxAttempts)
-            {
-                ShowErrorMessage("Maximum login attempts exceeded. Application will close.");
-                this.DialogResult = DialogResult.Cancel;
-                this.Close();
-            }
-            else
-            {
-                UpdateAttemptsDisplay();
-                ShowInfoMessage($"Invalid PIN. {maxAttempts - currentAttempts} attempts remaining.");
-            }
-        }
-
-        /// <summary>
-        /// Updates the attempts display to show remaining login attempts.
-        /// </summary>
-        private void UpdateAttemptsDisplay()
-        {
-            lblAttempts.Text = $"Attempts remaining: {maxAttempts - currentAttempts}";
-            lblAttempts.Visible = true;
-        }
-
-        /// <summary>
-        /// Handles the cancel button click event.
+        /// Handles the cancel button click event to close the form.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">Event arguments.</param>
+        /// <param name="e">Event data.</param>
         private void btnCancel_Click(object sender, EventArgs e)
         {
-            this.DialogResult = DialogResult.Cancel;
-            this.Close();
+            DialogResult = DialogResult.Cancel;
         }
 
         /// <summary>
-        /// Handles the PIN label click event.
+        /// Handles the key press event on the PIN text box to allow login on Enter key.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">Event arguments.</param>
+        /// <param name="e">Event data.</param>
+        private void txtPin_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (e.KeyChar == (char)Keys.Enter)
+            {
+                e.Handled = true;
+                btnLogin_Click(sender, e);
+            }
+        }
+
+        /// <summary>
+        /// Handles the PIN label click event to focus the PIN text box.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">Event data.</param>
         private void lblPin_Click(object sender, EventArgs e)
         {
-            // Focus on the PIN text box when the label is clicked
             txtPin.Focus();
         }
-
-        /// <summary>
-        /// Handles the form load event.
-        /// </summary>
-        /// <param name="sender">The source of the event.</param>
-        /// <param name="e">Event arguments.</param>
-        private void LoginForm_Load(object sender, EventArgs e)
-        {
-            // Set focus to the PIN text box when the form loads
-            txtPin.Focus();
-        }
-
-       
     }
 }

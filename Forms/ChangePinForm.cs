@@ -1,16 +1,17 @@
 using System;
+using System.Threading.Tasks;
 using System.Windows.Forms;
-using goodwin_winForm.Controllers;
+using goodwin_winForm.Services;
 
 namespace goodwin_winForm.Forms
 {
     /// <summary>
-    /// Touch-optimized form for changing the system PIN code.
-    /// Provides a user-friendly interface with touch-friendly controls for PIN management.
+    /// Form for changing the system PIN code.
+    /// Provides a user-friendly interface for PIN management.
     /// </summary>
-    public partial class ChangePinForm : BaseForm
+    public partial class ChangePinForm : Form
     {
-        private readonly IAuthController _authController;
+        private readonly IPinService _pinService;
 
         // Form controls
         private Label lblTitle;
@@ -25,19 +26,19 @@ namespace goodwin_winForm.Forms
         private Label lblRequirements;
 
         /// <summary>
-        /// Initializes a new instance of the ChangePinForm with the specified authentication controller.
+        /// Initializes a new instance of the ChangePinForm with the specified PIN service.
         /// </summary>
-        /// <param name="authController">The authentication controller for PIN operations.</param>
-        /// <exception cref="ArgumentNullException">Thrown when authController is null.</exception>
-        public ChangePinForm(IAuthController authController)
+        /// <param name="pinService">The PIN service for PIN operations.</param>
+        /// <exception cref="ArgumentNullException">Thrown when pinService is null.</exception>
+        public ChangePinForm(IPinService pinService)
         {
-            _authController = authController ?? throw new ArgumentNullException(nameof(authController));
+            _pinService = pinService ?? throw new ArgumentNullException(nameof(pinService));
             InitializeComponent();
             SetupForm();
         }
 
         /// <summary>
-        /// Sets up the form with touch-friendly configuration and PIN requirements.
+        /// Sets up the form with configuration and PIN requirements.
         /// </summary>
         private void SetupForm()
         {
@@ -47,14 +48,20 @@ namespace goodwin_winForm.Forms
             this.Text = "Change PIN";
             
             // Set PIN requirements text
-            lblRequirements.Text = _authController.GetPinRequirements();
-            
-            // Setup loading button
-            SetupLoadingButton(btnSave, "Save");
+            lblRequirements.Text = GetPinRequirements();
         }
 
         /// <summary>
-        /// Initializes all form controls with touch-friendly styling and layout.
+        /// Gets the PIN requirements as a user-friendly message.
+        /// </summary>
+        /// <returns>A string describing the PIN requirements.</returns>
+        private string GetPinRequirements()
+        {
+            return "PIN must be 4-10 characters long.";
+        }
+
+        /// <summary>
+        /// Initializes all form controls with styling and layout.
         /// </summary>
         private void InitializeComponent()
         {
@@ -200,29 +207,34 @@ namespace goodwin_winForm.Forms
             if (!ValidateInputs())
                 return;
 
+            btnSave.Enabled = false;
+            btnSave.Text = "Saving...";
+
             try
             {
-                SetLoadingState(btnSave, true, "Saving...");
-
-                if (await _authController.ChangePinAsync(txtCurrentPin.Text.Trim(), txtNewPin.Text.Trim()))
+                if (await _pinService.ChangePinAsync(txtCurrentPin.Text.Trim(), txtNewPin.Text.Trim()))
                 {
-                    ShowSuccessMessage("PIN changed successfully!");
+                    MessageBox.Show("PIN changed successfully!", "Success", 
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
                     this.DialogResult = DialogResult.OK;
                     this.Close();
                 }
                 else
                 {
-                    ShowErrorMessage("Failed to change PIN. Please verify your current PIN is correct.");
+                    MessageBox.Show("Failed to change PIN. Please verify your current PIN is correct.", "Error", 
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
                     txtCurrentPin.Focus();
                 }
             }
             catch (Exception ex)
             {
-                ShowErrorMessage($"Error changing PIN: {ex.Message}");
+                MessageBox.Show($"Error changing PIN: {ex.Message}", "Error", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
             {
-                SetLoadingState(btnSave, false);
+                btnSave.Enabled = true;
+                btnSave.Text = "Save";
             }
         }
 
@@ -232,15 +244,35 @@ namespace goodwin_winForm.Forms
         /// <returns>True if all validations pass; otherwise, false.</returns>
         private bool ValidateInputs()
         {
-            if (!ValidateRequiredField(txtCurrentPin, "current PIN"))
+            if (string.IsNullOrWhiteSpace(txtCurrentPin.Text))
+            {
+                MessageBox.Show("Please enter your current PIN.", "Validation Error", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtCurrentPin.Focus();
                 return false;
+            }
 
-            if (!ValidateRequiredField(txtNewPin, "new PIN"))
+            if (string.IsNullOrWhiteSpace(txtNewPin.Text))
+            {
+                MessageBox.Show("Please enter a new PIN.", "Validation Error", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtNewPin.Focus();
                 return false;
+            }
+
+            if (txtNewPin.Text.Length < 4)
+            {
+                MessageBox.Show("New PIN must be at least 4 characters long.", "Validation Error", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtNewPin.Focus();
+                return false;
+            }
 
             if (txtNewPin.Text.Trim() != txtConfirmPin.Text.Trim())
             {
-                ShowValidationError("New PIN and confirmation PIN do not match.", txtConfirmPin);
+                MessageBox.Show("New PIN and confirmation PIN do not match.", "Validation Error", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtConfirmPin.Focus();
                 return false;
             }
 

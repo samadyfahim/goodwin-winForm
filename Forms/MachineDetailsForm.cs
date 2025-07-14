@@ -201,7 +201,7 @@ namespace goodwin_winForm.Forms
 
             if (_detailedMachine.Alerts != null)
             {
-                foreach (var alert in _detailedMachine.Alerts.Where(a => a.Status == AlertStatus.Active).Take(10))
+                foreach (var alert in _detailedMachine.Alerts.Take(10)) // Show last 10 alerts (all statuses)
                 {
                     var item = new ListViewItem(alert.CreatedDate.ToShortDateString());
                     item.SubItems.Add(alert.Type.ToString());

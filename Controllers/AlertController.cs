@@ -4,24 +4,28 @@ using System.Linq;
 using System.Threading.Tasks;
 using goodwin_winForm.Models;
 using goodwin_winForm.Services;
+using Microsoft.EntityFrameworkCore;
 
 namespace goodwin_winForm.Controllers
 {
     /// <summary>
-    /// Controller responsible for managing alert-related business logic and operations.
+    /// Controller responsible for alert data access operations.
     /// Provides a clean interface between the UI layer and data access layer for alerts.
     /// </summary>
     public class AlertController : IAlertController
     {
+        private readonly ApplicationDbContext _context;
         private readonly IAlertRepository _alertRepository;
 
         /// <summary>
-        /// Initializes a new instance of the AlertController with the specified alert repository.
+        /// Initializes a new instance of the AlertController with the specified database context and alert repository.
         /// </summary>
-        /// <param name="alertRepository">The alert repository for data access operations.</param>
-        /// <exception cref="ArgumentNullException">Thrown when alertRepository is null.</exception>
-        public AlertController(IAlertRepository alertRepository)
+        /// <param name="context">The database context for data access operations.</param>
+        /// <param name="alertRepository">The alert repository for business logic operations.</param>
+        /// <exception cref="ArgumentNullException">Thrown when context or alertRepository is null.</exception>
+        public AlertController(ApplicationDbContext context, IAlertRepository alertRepository)
         {
+            _context = context ?? throw new ArgumentNullException(nameof(context));
             _alertRepository = alertRepository ?? throw new ArgumentNullException(nameof(alertRepository));
         }
 
@@ -35,8 +39,11 @@ namespace goodwin_winForm.Controllers
         {
             try
             {
-                var alerts = await _alertRepository.GetAlertsByMachineIdAsync(machineId);
-                return alerts.ToList();
+                var alerts = await _context.Alerts
+                    .Where(a => a.MachineId == machineId)
+                    .OrderByDescending(a => a.CreatedDate)
+                    .ToListAsync();
+                return alerts;
             }
             catch (Exception ex)
             {
@@ -54,8 +61,11 @@ namespace goodwin_winForm.Controllers
         {
             try
             {
-                var alerts = await _alertRepository.GetActiveAlertsByMachineIdAsync(machineId);
-                return alerts.ToList();
+                var alerts = await _context.Alerts
+                    .Where(a => a.MachineId == machineId && a.Status == AlertStatus.Active)
+                    .OrderByDescending(a => a.CreatedDate)
+                    .ToListAsync();
+                return alerts;
             }
             catch (Exception ex)
             {
@@ -75,12 +85,14 @@ namespace goodwin_winForm.Controllers
             if (alert == null)
                 throw new ArgumentNullException(nameof(alert));
 
-            if (!await ValidateAlertDataAsync(alert))
+            if (!await _alertRepository.ValidateAlertDataAsync(alert))
                 return false;
 
             try
             {
-                await _alertRepository.AddAlertAsync(alert);
+                alert.CreatedDate = DateTime.Now;
+                _context.Alerts.Add(alert);
+                await _context.SaveChangesAsync();
                 return true;
             }
             catch (Exception ex)
@@ -101,12 +113,13 @@ namespace goodwin_winForm.Controllers
             if (alert == null)
                 throw new ArgumentNullException(nameof(alert));
 
-            if (!await ValidateAlertDataAsync(alert))
+            if (!await _alertRepository.ValidateAlertDataAsync(alert))
                 return false;
 
             try
             {
-                await _alertRepository.UpdateAlertAsync(alert);
+                _context.Alerts.Update(alert);
+                await _context.SaveChangesAsync();
                 return true;
             }
             catch (Exception ex)
@@ -125,7 +138,8 @@ namespace goodwin_winForm.Controllers
         {
             try
             {
-                return await _alertRepository.GetAlertByIdAsync(alertId);
+                return await _context.Alerts
+                    .FirstOrDefaultAsync(a => a.AlertId == alertId);
             }
             catch (Exception ex)
             {
@@ -142,89 +156,16 @@ namespace goodwin_winForm.Controllers
         {
             try
             {
-                var alerts = await _alertRepository.GetAllActiveAlertsAsync();
-                return alerts.ToList();
+                var alerts = await _context.Alerts
+                    .Where(a => a.Status == AlertStatus.Active)
+                    .OrderByDescending(a => a.CreatedDate)
+                    .ToListAsync();
+                return alerts;
             }
             catch (Exception ex)
             {
                 throw new InvalidOperationException("Failed to retrieve all active alerts", ex);
             }
-        }
-
-        /// <summary>
-        /// Validates alert data according to business rules before saving.
-        /// </summary>
-        /// <param name="alert">The alert to validate.</param>
-        /// <returns>True if the alert data is valid; otherwise, false.</returns>
-        public async Task<bool> ValidateAlertDataAsync(Alert alert)
-        {
-            if (alert == null)
-                return false;
-
-            // Validate required fields
-            if (string.IsNullOrWhiteSpace(alert.Title))
-                return false;
-
-            if (alert.MachineId <= 0)
-                return false;
-
-            // Validate dates
-            if (alert.CreatedDate > DateTime.Now.AddDays(1)) // Allow future dates up to 1 day
-                return false;
-
-            if (alert.AcknowledgedDate.HasValue && alert.AcknowledgedDate < alert.CreatedDate)
-                return false;
-
-            if (alert.ResolvedDate.HasValue && alert.ResolvedDate < alert.CreatedDate)
-                return false;
-
-            return true;
-        }
-
-        /// <summary>
-        /// Creates a maintenance overdue alert for a machine asynchronously.
-        /// </summary>
-        /// <param name="machineId">The ID of the machine.</param>
-        /// <param name="machineName">The name of the machine.</param>
-        /// <param name="dueDate">The maintenance due date.</param>
-        /// <returns>True if the alert was successfully created; otherwise, false.</returns>
-        public async Task<bool> CreateMaintenanceOverdueAlertAsync(int machineId, string machineName, DateTime dueDate)
-        {
-            var alert = new Alert
-            {
-                MachineId = machineId,
-                Type = AlertType.MaintenanceOverdue,
-                Severity = AlertSeverity.High,
-                Title = $"Maintenance Overdue - {machineName}",
-                Message = $"Maintenance was due on {dueDate:d}. Please schedule maintenance immediately.",
-                Status = AlertStatus.Active,
-                CreatedDate = DateTime.Now
-            };
-
-            return await AddAlertAsync(alert);
-        }
-
-        /// <summary>
-        /// Creates a maintenance due alert for a machine asynchronously.
-        /// </summary>
-        /// <param name="machineId">The ID of the machine.</param>
-        /// <param name="machineName">The name of the machine.</param>
-        /// <param name="dueDate">The maintenance due date.</param>
-        /// <returns>True if the alert was successfully created; otherwise, false.</returns>
-        public async Task<bool> CreateMaintenanceDueAlertAsync(int machineId, string machineName, DateTime dueDate)
-        {
-            var alert = new Alert
-            {
-                MachineId = machineId,
-                Type = AlertType.MaintenanceDue,
-                Severity = AlertSeverity.Medium,
-                Title = $"Maintenance Due - {machineName}",
-                Message = $"Maintenance is due on {dueDate:d}. Please schedule maintenance soon.",
-                Status = AlertStatus.Active,
-                CreatedDate = DateTime.Now
-            };
-
-            return await AddAlertAsync(alert);
         }
     }
 } 

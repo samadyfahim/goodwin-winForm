@@ -40,14 +40,14 @@ namespace goodwin_winForm
             // Show login form and initialize database
             using (var scope = host.Services.CreateScope())
             {
-                var authController = scope.ServiceProvider.GetRequiredService<IAuthController>();
+                var pinService = scope.ServiceProvider.GetRequiredService<IPinService>();
                 var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 
                 // Initialize database synchronously
                 DatabaseService.InitializeDatabaseAsync(context).Wait();
                 
                 // Show login form
-                using (var loginForm = new LoginForm(authController))
+                using (var loginForm = new LoginForm(pinService))
                 {
                     if (loginForm.ShowDialog() != DialogResult.OK)
                     {
@@ -61,8 +61,8 @@ namespace goodwin_winForm
             using (var scope = host.Services.CreateScope())
             {
                 var machineController = scope.ServiceProvider.GetRequiredService<IMachineController>();
-                var authController = scope.ServiceProvider.GetRequiredService<IAuthController>();
-                Application.Run(new SelectMachineForm(machineController, authController));
+                var pinService = scope.ServiceProvider.GetRequiredService<IPinService>();
+                Application.Run(new SelectMachineForm(machineController, pinService));
             }
         }
 
@@ -99,11 +99,30 @@ namespace goodwin_winForm
                     // Add PIN service
                     services.AddSingleton<IPinService, PinService>();
                     
-                    // Add controllers
-                    services.AddScoped<IAuthController, AuthController>();
-                    services.AddScoped<IMachineController, MachineController>();
-                    services.AddScoped<IMaintenanceController, MaintenanceController>();
-                    services.AddScoped<IAlertController, AlertController>();
+                    // Add MaintenanceController with ApplicationDbContext and MaintenanceRepository dependencies
+                    services.AddScoped<IMaintenanceController>(provider => 
+                    {
+                        var context = provider.GetRequiredService<ApplicationDbContext>();
+                        var maintenanceRepository = provider.GetRequiredService<IMaintenanceRepository>();
+                        return new MaintenanceController(context, maintenanceRepository);
+                    });
+                    
+                    // Add AlertController with ApplicationDbContext and AlertRepository dependencies
+                    services.AddScoped<IAlertController>(provider => 
+                    {
+                        var context = provider.GetRequiredService<ApplicationDbContext>();
+                        var alertRepository = provider.GetRequiredService<IAlertRepository>();
+                        return new AlertController(context, alertRepository);
+                    });
+                    
+                    // Add MachineController with ApplicationDbContext, MachineRepository, and AlertRepository dependencies
+                    services.AddScoped<IMachineController>(provider => 
+                    {
+                        var context = provider.GetRequiredService<ApplicationDbContext>();
+                        var machineRepository = provider.GetRequiredService<IMachineRepository>();
+                        var alertRepository = provider.GetRequiredService<IAlertRepository>();
+                        return new MachineController(context, machineRepository, alertRepository);
+                    });
                 });
         }
     }

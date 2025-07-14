@@ -5,8 +5,8 @@ using Microsoft.Data.SqlClient;
 namespace goodwin_winForm.Services
 {
     /// <summary>
-    /// Repository responsible for machine data access operations using Entity Framework Core.
-    /// Provides a clean interface for database operations related to machines and related entities.
+    /// Repository responsible for machine business logic operations using Entity Framework Core.
+    /// Provides business logic for machines.
     /// </summary>
     public class MachineRepository : IMachineRepository
     {
@@ -22,151 +22,87 @@ namespace goodwin_winForm.Services
         }
 
         /// <summary>
-        /// Retrieves all machines from the database asynchronously with related data.
-        /// This method includes maintenance records and active alerts for each machine.
+        /// Validates machine data according to business rules before saving.
         /// </summary>
-        /// <returns>A collection of all machines ordered by name.</returns>
-        /// <remarks>
-        /// Includes related data:
-        /// - Maintenance records for each machine
-        /// - Active alerts for each machine
-        /// Results are ordered alphabetically by machine name.
-        /// </remarks>
-        public async Task<IEnumerable<Machine>> GetAllMachinesAsync()
+        /// <param name="machine">The machine object to validate.</param>
+        /// <returns>True if the machine data is valid; otherwise, false.</returns>
+        public async Task<bool> ValidateMachineDataAsync(Machine machine)
         {
+            if (machine == null)
+            {
+                System.Diagnostics.Debug.WriteLine("Validation failed: Machine is null");
+                return false;
+            }
+
+            // Validate required fields
+            if (string.IsNullOrWhiteSpace(machine.Name))
+            {
+                System.Diagnostics.Debug.WriteLine("Validation failed: Name is empty");
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(machine.SerialNumber))
+            {
+                System.Diagnostics.Debug.WriteLine("Validation failed: SerialNumber is empty");
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(machine.Model))
+            {
+                System.Diagnostics.Debug.WriteLine("Validation failed: Model is empty");
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(machine.Manufacturer))
+            {
+                System.Diagnostics.Debug.WriteLine("Validation failed: Manufacturer is empty");
+                return false;
+            }
+
+            // Validate dates
+            if (machine.InstallationDate > DateTime.Today)
+            {
+                System.Diagnostics.Debug.WriteLine($"Validation failed: InstallationDate {machine.InstallationDate} is in the future");
+                return false;
+            }
+
+            // Only validate maintenance dates if they are not default values
+            if (machine.LastMaintenanceDate != DateTime.MinValue && machine.NextMaintenanceDate != DateTime.MinValue)
+            {
+                if (machine.NextMaintenanceDate < machine.LastMaintenanceDate)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Validation failed: NextMaintenanceDate {machine.NextMaintenanceDate} is before LastMaintenanceDate {machine.LastMaintenanceDate}");
+                    return false;
+                }
+            }
+
+            // Check for duplicate serial number (excluding the current machine being updated)
             try
             {
-                // Test database connection first
-                if (!await _context.Database.CanConnectAsync())
-                {
-                    throw new InvalidOperationException("Cannot connect to database");
-                }
-                
-                return await _context.Machines
+                var existingMachines = await _context.Machines
                     .Include(m => m.MaintenanceRecords)
                     .Include(m => m.Alerts.Where(a => a.Status == AlertStatus.Active))
                     .OrderBy(m => m.Name)
                     .ToListAsync();
+                    
+                var duplicateSerial = existingMachines.Any(m => 
+                    m.SerialNumber.Equals(machine.SerialNumber, StringComparison.OrdinalIgnoreCase) && 
+                    m.MachineId != machine.MachineId);
+                
+                if (duplicateSerial)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Validation failed: Duplicate serial number found: {machine.SerialNumber}");
+                    return false;
+                }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"GetAllMachinesAsync failed: {ex.Message}");
-                throw;
+                System.Diagnostics.Debug.WriteLine($"Error checking for duplicate serial numbers: {ex.Message}");
+                return true;
             }
-        }
 
-        /// <summary>
-        /// Adds a new machine to the database asynchronously.
-        /// This method sets creation and update timestamps automatically.
-        /// </summary>
-        /// <param name="machine">The machine object to add to the database.</param>
-        /// <returns>The added machine with updated ID and timestamps.</returns>
-        /// <remarks>
-        /// Automatically sets:
-        /// - CreatedAt timestamp to current date/time
-        /// - UpdatedAt timestamp to current date/time
-        /// The machine ID will be generated by the database.
-        /// </remarks>
-        public async Task<Machine> AddMachineAsync(Machine machine)
-        {
-            machine.CreatedAt = DateTime.Now;
-            machine.UpdatedAt = DateTime.Now;
-            
-            _context.Machines.Add(machine);
-            await _context.SaveChangesAsync();
-            return machine;
-        }
-
-        /// <summary>
-        /// Updates an existing machine in the database asynchronously.
-        /// This method updates the machine data while preserving creation timestamp.
-        /// </summary>
-        /// <param name="machine">The machine object to update in the database.</param>
-        /// <returns>The updated machine with updated timestamp.</returns>
-        /// <remarks>
-        /// Automatically sets:
-        /// - UpdatedAt timestamp to current date/time
-        /// Preserves the original CreatedAt timestamp.
-        /// </remarks>
-        public async Task<Machine> UpdateMachineAsync(Machine machine)
-        {
-            System.Diagnostics.Debug.WriteLine($"Repository: Starting update for machine ID {machine.MachineId}");
-            
-            if (machine.MachineId <= 0)
-            {
-                throw new ArgumentException("Machine ID must be greater than 0", nameof(machine));
-            }
-            
-            machine.UpdatedAt = DateTime.Now;
-            
-            try
-            {
-                // Use a more explicit approach to avoid tracking issues
-                var existingMachine = await _context.Machines
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(m => m.MachineId == machine.MachineId);
-                
-                if (existingMachine == null)
-                {
-                    throw new InvalidOperationException($"Machine with ID {machine.MachineId} not found");
-                }
-                
-                System.Diagnostics.Debug.WriteLine($"Repository: Found existing machine, updating values");
-                
-                // Update the machine using raw SQL to avoid any tracking issues
-                var sql = @"
-                    UPDATE Machines 
-                    SET Name = @Name, Description = @Description, SerialNumber = @SerialNumber,
-                        Model = @Model, Manufacturer = @Manufacturer, InstallationDate = @InstallationDate,
-                        Status = @Status, Location = @Location, Department = @Department,
-                        LastMaintenanceDate = @LastMaintenanceDate, NextMaintenanceDate = @NextMaintenanceDate,
-                        MaintenanceIntervalDays = @MaintenanceIntervalDays, Notes = @Notes,
-                        ImagePath = @ImagePath, UpdatedAt = @UpdatedAt
-                    WHERE MachineId = @MachineId";
-                
-                var parameters = new[]
-                {
-                    new Microsoft.Data.SqlClient.SqlParameter("@MachineId", machine.MachineId),
-                    new Microsoft.Data.SqlClient.SqlParameter("@Name", machine.Name),
-                    new Microsoft.Data.SqlClient.SqlParameter("@Description", (object)machine.Description ?? DBNull.Value),
-                    new Microsoft.Data.SqlClient.SqlParameter("@SerialNumber", machine.SerialNumber),
-                    new Microsoft.Data.SqlClient.SqlParameter("@Model", machine.Model),
-                    new Microsoft.Data.SqlClient.SqlParameter("@Manufacturer", (object)machine.Manufacturer ?? DBNull.Value),
-                    new Microsoft.Data.SqlClient.SqlParameter("@InstallationDate", machine.InstallationDate),
-                    new Microsoft.Data.SqlClient.SqlParameter("@Status", (int)machine.Status),
-                    new Microsoft.Data.SqlClient.SqlParameter("@Location", (object)machine.Location ?? DBNull.Value),
-                    new Microsoft.Data.SqlClient.SqlParameter("@Department", (object)machine.Department ?? DBNull.Value),
-                    new Microsoft.Data.SqlClient.SqlParameter("@LastMaintenanceDate", machine.LastMaintenanceDate),
-                    new Microsoft.Data.SqlClient.SqlParameter("@NextMaintenanceDate", machine.NextMaintenanceDate),
-                    new Microsoft.Data.SqlClient.SqlParameter("@MaintenanceIntervalDays", machine.MaintenanceIntervalDays),
-                    new Microsoft.Data.SqlClient.SqlParameter("@Notes", (object)machine.Notes ?? DBNull.Value),
-                    new Microsoft.Data.SqlClient.SqlParameter("@ImagePath", (object)machine.ImagePath ?? DBNull.Value),
-                    new Microsoft.Data.SqlClient.SqlParameter("@UpdatedAt", machine.UpdatedAt)
-                };
-                
-                System.Diagnostics.Debug.WriteLine($"Repository: Executing SQL update...");
-                var rowsAffected = await _context.Database.ExecuteSqlRawAsync(sql, parameters);
-                
-                if (rowsAffected == 0)
-                {
-                    throw new InvalidOperationException($"No rows were updated for machine ID {machine.MachineId}");
-                }
-                
-                System.Diagnostics.Debug.WriteLine($"Repository: SQL update completed successfully, {rowsAffected} rows affected");
-                
-                // Return the updated machine
-                return machine;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Repository: Update failed with error: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"Repository: Error type: {ex.GetType().Name}");
-                if (ex.InnerException != null)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Repository: Inner exception: {ex.InnerException.Message}");
-                }
-                throw;
-            }
+            System.Diagnostics.Debug.WriteLine("Machine validation passed successfully");
+            return true;
         }
     }
 } 

@@ -4,8 +4,8 @@ using goodwin_winForm.Models;
 namespace goodwin_winForm.Services
 {
     /// <summary>
-    /// Repository responsible for maintenance record data access operations using Entity Framework Core.
-    /// Provides a clean interface for database operations related to maintenance records.
+    /// Repository responsible for maintenance record business logic operations using Entity Framework Core.
+    /// Provides business logic for maintenance records.
     /// </summary>
     public class MaintenanceRepository : IMaintenanceRepository
     {
@@ -21,56 +21,37 @@ namespace goodwin_winForm.Services
         }
 
         /// <summary>
-        /// Retrieves all maintenance records for a specific machine asynchronously.
+        /// Validates maintenance record data according to business rules before saving.
         /// </summary>
-        /// <param name="machineId">The ID of the machine to get maintenance records for.</param>
-        /// <returns>A collection of maintenance records for the specified machine.</returns>
-        public async Task<IEnumerable<MaintenanceRecord>> GetMaintenanceRecordsByMachineIdAsync(int machineId)
+        /// <param name="maintenanceRecord">The maintenance record to validate.</param>
+        /// <returns>True if the maintenance record data is valid; otherwise, false.</returns>
+        public async Task<bool> ValidateMaintenanceRecordDataAsync(MaintenanceRecord maintenanceRecord)
         {
-            return await _context.MaintenanceRecords
-                .Where(m => m.MachineId == machineId)
-                .OrderByDescending(m => m.MaintenanceDate)
-                .ToListAsync();
-        }
+            if (maintenanceRecord == null)
+                return false;
 
-        /// <summary>
-        /// Adds a new maintenance record to the database asynchronously.
-        /// </summary>
-        /// <param name="maintenanceRecord">The maintenance record to add.</param>
-        /// <returns>The added maintenance record with updated ID and timestamps.</returns>
-        public async Task<MaintenanceRecord> AddMaintenanceRecordAsync(MaintenanceRecord maintenanceRecord)
-        {
-            maintenanceRecord.CreatedAt = DateTime.Now;
-            maintenanceRecord.UpdatedAt = DateTime.Now;
-            
-            _context.MaintenanceRecords.Add(maintenanceRecord);
-            await _context.SaveChangesAsync();
-            return maintenanceRecord;
-        }
+            // Validate required fields
+            if (string.IsNullOrWhiteSpace(maintenanceRecord.Title))
+                return false;
 
-        /// <summary>
-        /// Updates an existing maintenance record in the database asynchronously.
-        /// </summary>
-        /// <param name="maintenanceRecord">The maintenance record to update.</param>
-        /// <returns>The updated maintenance record.</returns>
-        public async Task<MaintenanceRecord> UpdateMaintenanceRecordAsync(MaintenanceRecord maintenanceRecord)
-        {
-            maintenanceRecord.UpdatedAt = DateTime.Now;
-            
-            _context.MaintenanceRecords.Update(maintenanceRecord);
-            await _context.SaveChangesAsync();
-            return maintenanceRecord;
-        }
+            if (string.IsNullOrWhiteSpace(maintenanceRecord.PerformedBy))
+                return false;
 
-        /// <summary>
-        /// Retrieves a specific maintenance record by ID asynchronously.
-        /// </summary>
-        /// <param name="maintenanceId">The ID of the maintenance record to retrieve.</param>
-        /// <returns>The maintenance record if found; otherwise, null.</returns>
-        public async Task<MaintenanceRecord?> GetMaintenanceRecordByIdAsync(int maintenanceId)
-        {
-            return await _context.MaintenanceRecords
-                .FirstOrDefaultAsync(m => m.MaintenanceId == maintenanceId);
+            if (maintenanceRecord.MachineId <= 0)
+                return false;
+
+            // Validate dates
+            if (maintenanceRecord.MaintenanceDate > DateTime.Today.AddDays(30)) // Allow scheduling up to 30 days in advance
+                return false;
+
+            if (maintenanceRecord.CompletedDate.HasValue && maintenanceRecord.CompletedDate < maintenanceRecord.MaintenanceDate)
+                return false;
+
+            // Validate cost (should be non-negative)
+            if (maintenanceRecord.Cost < 0)
+                return false;
+
+            return true;
         }
     }
 } 

@@ -498,7 +498,6 @@ namespace goodwin_winForm.Forms
             // 
             // btnAddMaintenance
             // 
-            btnAddMaintenance = new Button();
             btnAddMaintenance.Location = new Point(19, 896);
             btnAddMaintenance.Margin = new Padding(4, 6, 4, 6);
             btnAddMaintenance.Name = "btnAddMaintenance";
@@ -510,7 +509,6 @@ namespace goodwin_winForm.Forms
             // 
             // btnAddAlert
             // 
-            btnAddAlert = new Button();
             btnAddAlert.Location = new Point(217, 896);
             btnAddAlert.Margin = new Padding(4, 6, 4, 6);
             btnAddAlert.Name = "btnAddAlert";
@@ -522,7 +520,6 @@ namespace goodwin_winForm.Forms
             // 
             // btnEditMachine
             // 
-            btnEditMachine = new Button();
             btnEditMachine.Location = new Point(384, 896);
             btnEditMachine.Margin = new Padding(4, 6, 4, 6);
             btnEditMachine.Name = "btnEditMachine";
@@ -534,7 +531,6 @@ namespace goodwin_winForm.Forms
             // 
             // btnClose
             // 
-            btnClose = new Button();
             btnClose.Location = new Point(1081, 896);
             btnClose.Margin = new Padding(4, 6, 4, 6);
             btnClose.Name = "btnClose";
@@ -554,6 +550,7 @@ namespace goodwin_winForm.Forms
             Controls.Add(btnAddAlert);
             Controls.Add(btnAddMaintenance);
             Controls.Add(tabControl);
+            FormBorderStyle = FormBorderStyle.None;
             Margin = new Padding(4, 6, 4, 6);
             MinimumSize = new Size(932, 706);
             Name = "MachineDetailsForm";

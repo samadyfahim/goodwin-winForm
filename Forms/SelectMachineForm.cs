@@ -6,32 +6,33 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using goodwin_winForm.Models;
 using goodwin_winForm.Controllers;
+using goodwin_winForm.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace goodwin_winForm.Forms
 {
     /// <summary>
-    /// Touch-optimized main form for machine selection and management.
+    /// Main form for machine selection and management.
     /// Provides a user-friendly interface with touch-friendly controls for viewing and managing machines.
     /// </summary>
     public partial class SelectMachineForm : BaseForm
     {
         private readonly IMachineController _machineController;
-        private readonly IAuthController _authController;
+        private readonly IPinService _pinService;
         private List<Machine> _machines = new List<Machine>();
         private List<MachineCard> _machineCards = new List<MachineCard>();
         private MachineCard _selectedCard = null;
 
         /// <summary>
-        /// Initializes a new instance of the SelectMachineForm with the specified controllers.
+        /// Initializes a new instance of the SelectMachineForm with the specified machine controller and PIN service.
         /// </summary>
         /// <param name="machineController">The machine controller for data operations.</param>
-        /// <param name="authController">The authentication controller for PIN management.</param>
-        /// <exception cref="ArgumentNullException">Thrown when either controller is null.</exception>
-        public SelectMachineForm(IMachineController machineController, IAuthController authController)
+        /// <param name="pinService">The PIN service for PIN management.</param>
+        /// <exception cref="ArgumentNullException">Thrown when either service is null.</exception>
+        public SelectMachineForm(IMachineController machineController, IPinService pinService)
         {
             _machineController = machineController ?? throw new ArgumentNullException(nameof(machineController));
-            _authController = authController ?? throw new ArgumentNullException(nameof(authController));
+            _pinService = pinService ?? throw new ArgumentNullException(nameof(pinService));
             InitializeComponent();
             SetupForm();
             LoadMachines();
@@ -203,7 +204,7 @@ namespace goodwin_winForm.Forms
         {
             try
             {
-                var changePinForm = new ChangePinForm(_authController);
+                var changePinForm = new ChangePinForm(_pinService);
                 changePinForm.ShowDialog();
             }
             catch (Exception ex)

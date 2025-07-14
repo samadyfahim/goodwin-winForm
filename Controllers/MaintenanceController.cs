@@ -4,24 +4,28 @@ using System.Linq;
 using System.Threading.Tasks;
 using goodwin_winForm.Models;
 using goodwin_winForm.Services;
+using Microsoft.EntityFrameworkCore;
 
 namespace goodwin_winForm.Controllers
 {
     /// <summary>
-    /// Controller responsible for managing maintenance-related business logic and operations.
+    /// Controller responsible for maintenance data access operations.
     /// Provides a clean interface between the UI layer and data access layer for maintenance records.
     /// </summary>
     public class MaintenanceController : IMaintenanceController
     {
+        private readonly ApplicationDbContext _context;
         private readonly IMaintenanceRepository _maintenanceRepository;
 
         /// <summary>
-        /// Initializes a new instance of the MaintenanceController with the specified maintenance repository.
+        /// Initializes a new instance of the MaintenanceController with the specified database context and maintenance repository.
         /// </summary>
-        /// <param name="maintenanceRepository">The maintenance repository for data access operations.</param>
-        /// <exception cref="ArgumentNullException">Thrown when maintenanceRepository is null.</exception>
-        public MaintenanceController(IMaintenanceRepository maintenanceRepository)
+        /// <param name="context">The database context for data access operations.</param>
+        /// <param name="maintenanceRepository">The maintenance repository for business logic operations.</param>
+        /// <exception cref="ArgumentNullException">Thrown when context or maintenanceRepository is null.</exception>
+        public MaintenanceController(ApplicationDbContext context, IMaintenanceRepository maintenanceRepository)
         {
+            _context = context ?? throw new ArgumentNullException(nameof(context));
             _maintenanceRepository = maintenanceRepository ?? throw new ArgumentNullException(nameof(maintenanceRepository));
         }
 
@@ -35,8 +39,11 @@ namespace goodwin_winForm.Controllers
         {
             try
             {
-                var records = await _maintenanceRepository.GetMaintenanceRecordsByMachineIdAsync(machineId);
-                return records.ToList();
+                var records = await _context.MaintenanceRecords
+                    .Where(m => m.MachineId == machineId)
+                    .OrderByDescending(m => m.MaintenanceDate)
+                    .ToListAsync();
+                return records;
             }
             catch (Exception ex)
             {
@@ -56,12 +63,16 @@ namespace goodwin_winForm.Controllers
             if (maintenanceRecord == null)
                 throw new ArgumentNullException(nameof(maintenanceRecord));
 
-            if (!await ValidateMaintenanceRecordDataAsync(maintenanceRecord))
+            if (!await _maintenanceRepository.ValidateMaintenanceRecordDataAsync(maintenanceRecord))
                 return false;
 
             try
             {
-                await _maintenanceRepository.AddMaintenanceRecordAsync(maintenanceRecord);
+                maintenanceRecord.CreatedAt = DateTime.Now;
+                maintenanceRecord.UpdatedAt = DateTime.Now;
+                
+                _context.MaintenanceRecords.Add(maintenanceRecord);
+                await _context.SaveChangesAsync();
                 return true;
             }
             catch (Exception ex)
@@ -82,12 +93,15 @@ namespace goodwin_winForm.Controllers
             if (maintenanceRecord == null)
                 throw new ArgumentNullException(nameof(maintenanceRecord));
 
-            if (!await ValidateMaintenanceRecordDataAsync(maintenanceRecord))
+            if (!await _maintenanceRepository.ValidateMaintenanceRecordDataAsync(maintenanceRecord))
                 return false;
 
             try
             {
-                await _maintenanceRepository.UpdateMaintenanceRecordAsync(maintenanceRecord);
+                maintenanceRecord.UpdatedAt = DateTime.Now;
+                
+                _context.MaintenanceRecords.Update(maintenanceRecord);
+                await _context.SaveChangesAsync();
                 return true;
             }
             catch (Exception ex)
@@ -106,46 +120,13 @@ namespace goodwin_winForm.Controllers
         {
             try
             {
-                return await _maintenanceRepository.GetMaintenanceRecordByIdAsync(maintenanceId);
+                return await _context.MaintenanceRecords
+                    .FirstOrDefaultAsync(m => m.MaintenanceId == maintenanceId);
             }
             catch (Exception ex)
             {
                 throw new InvalidOperationException("Failed to retrieve maintenance record", ex);
             }
-        }
-
-        /// <summary>
-        /// Validates maintenance record data according to business rules before saving.
-        /// </summary>
-        /// <param name="maintenanceRecord">The maintenance record to validate.</param>
-        /// <returns>True if the maintenance record data is valid; otherwise, false.</returns>
-        public async Task<bool> ValidateMaintenanceRecordDataAsync(MaintenanceRecord maintenanceRecord)
-        {
-            if (maintenanceRecord == null)
-                return false;
-
-            // Validate required fields
-            if (string.IsNullOrWhiteSpace(maintenanceRecord.Title))
-                return false;
-
-            if (string.IsNullOrWhiteSpace(maintenanceRecord.PerformedBy))
-                return false;
-
-            if (maintenanceRecord.MachineId <= 0)
-                return false;
-
-            // Validate dates
-            if (maintenanceRecord.MaintenanceDate > DateTime.Today.AddDays(30)) // Allow scheduling up to 30 days in advance
-                return false;
-
-            if (maintenanceRecord.CompletedDate.HasValue && maintenanceRecord.CompletedDate < maintenanceRecord.MaintenanceDate)
-                return false;
-
-            // Validate cost (should be non-negative)
-            if (maintenanceRecord.Cost < 0)
-                return false;
-
-            return true;
         }
     }
 } 

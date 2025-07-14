@@ -4,33 +4,37 @@ using System.Linq;
 using System.Threading.Tasks;
 using goodwin_winForm.Models;
 using goodwin_winForm.Services;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
 
 namespace goodwin_winForm.Controllers
 {
     /// <summary>
-    /// Controller responsible for managing machine-related business logic and operations.
+    /// Controller responsible for machine data access operations.
     /// Provides a clean interface between the UI layer and data access layer.
     /// </summary>
     public class MachineController : IMachineController
     {
+        private readonly ApplicationDbContext _context;
         private readonly IMachineRepository _machineRepository;
-        private readonly IAlertController? _alertController;
+        private readonly IAlertRepository? _alertRepository;
 
         /// <summary>
-        /// Initializes a new instance of the MachineController with the specified machine repository.
+        /// Initializes a new instance of the MachineController with the specified database context and repositories.
         /// </summary>
-        /// <param name="machineRepository">The machine repository for data access operations.</param>
-        /// <param name="alertController">The alert controller for creating automatic alerts (optional).</param>
-        /// <exception cref="ArgumentNullException">Thrown when machineRepository is null.</exception>
-        public MachineController(IMachineRepository machineRepository, IAlertController? alertController = null)
+        /// <param name="context">The database context for data access operations.</param>
+        /// <param name="machineRepository">The machine repository for business logic operations.</param>
+        /// <param name="alertRepository">The alert repository for creating automatic alerts (optional).</param>
+        /// <exception cref="ArgumentNullException">Thrown when context or machineRepository is null.</exception>
+        public MachineController(ApplicationDbContext context, IMachineRepository machineRepository, IAlertRepository? alertRepository = null)
         {
+            _context = context ?? throw new ArgumentNullException(nameof(context));
             _machineRepository = machineRepository ?? throw new ArgumentNullException(nameof(machineRepository));
-            _alertController = alertController;
+            _alertRepository = alertRepository;
         }
 
         /// <summary>
         /// Retrieves all machines from the database asynchronously.
-        /// This method is used by the main machine selection form to display the list of available machines.
         /// </summary>
         /// <returns>A list of all machines in the system.</returns>
         /// <exception cref="InvalidOperationException">Thrown when the database operation fails.</exception>
@@ -38,8 +42,17 @@ namespace goodwin_winForm.Controllers
         {
             try
             {
-                var machines = await _machineRepository.GetAllMachinesAsync();
-                return machines.ToList();
+                if (!await _context.Database.CanConnectAsync())
+                {
+                    throw new InvalidOperationException("Cannot connect to database");
+                }
+                
+                var machines = await _context.Machines
+                    .Include(m => m.MaintenanceRecords)
+                    .Include(m => m.Alerts.Where(a => a.Status == AlertStatus.Active))
+                    .OrderBy(m => m.Name)
+                    .ToListAsync();
+                return machines;
             }
             catch (Exception ex)
             {
@@ -49,7 +62,6 @@ namespace goodwin_winForm.Controllers
 
         /// <summary>
         /// Retrieves a single machine by its ID from the database asynchronously.
-        /// This method is used to get detailed information about a specific machine.
         /// </summary>
         /// <param name="machineId">The ID of the machine to retrieve.</param>
         /// <returns>The machine object if found; otherwise, null.</returns>
@@ -58,7 +70,7 @@ namespace goodwin_winForm.Controllers
         {
             try
             {
-                var machines = await _machineRepository.GetAllMachinesAsync();
+                var machines = await GetAllMachinesAsync();
                 return machines.FirstOrDefault(m => m.MachineId == machineId);
             }
             catch (Exception ex)
@@ -69,8 +81,6 @@ namespace goodwin_winForm.Controllers
 
         /// <summary>
         /// Adds a new machine to the system asynchronously.
-        /// This method validates the machine data before saving it to the database.
-        /// Used by the AddMachineForm to create new machine entries.
         /// </summary>
         /// <param name="machine">The machine object to add to the system.</param>
         /// <returns>True if the machine was successfully added; otherwise, false.</returns>
@@ -81,12 +91,16 @@ namespace goodwin_winForm.Controllers
             if (machine == null)
                 throw new ArgumentNullException(nameof(machine));
 
-            if (!await ValidateMachineDataAsync(machine))
+            if (!await _machineRepository.ValidateMachineDataAsync(machine))
                 return false;
 
             try
             {
-                await _machineRepository.AddMachineAsync(machine);
+                machine.CreatedAt = DateTime.Now;
+                machine.UpdatedAt = DateTime.Now;
+                
+                _context.Machines.Add(machine);
+                await _context.SaveChangesAsync();
                 return true;
             }
             catch (Exception ex)
@@ -97,8 +111,6 @@ namespace goodwin_winForm.Controllers
 
         /// <summary>
         /// Updates an existing machine in the system asynchronously.
-        /// This method validates the machine data before updating it in the database.
-        /// Used by the EditMachineForm to update existing machine entries.
         /// </summary>
         /// <param name="machine">The machine object to update in the system.</param>
         /// <returns>True if the machine was successfully updated; otherwise, false.</returns>
@@ -109,121 +121,71 @@ namespace goodwin_winForm.Controllers
             if (machine == null)
                 throw new ArgumentNullException(nameof(machine));
 
-            // Add debugging information
-            System.Diagnostics.Debug.WriteLine($"Updating machine: ID={machine.MachineId}, Name={machine.Name}, Serial={machine.SerialNumber}");
-            System.Diagnostics.Debug.WriteLine($"Machine details: Model={machine.Model}, Manufacturer={machine.Manufacturer}");
-            System.Diagnostics.Debug.WriteLine($"Dates: Installation={machine.InstallationDate}, LastMaintenance={machine.LastMaintenanceDate}, NextMaintenance={machine.NextMaintenanceDate}");
-
-            if (!await ValidateMachineDataAsync(machine))
-            {
-                System.Diagnostics.Debug.WriteLine("Machine validation failed");
+            if (!await _machineRepository.ValidateMachineDataAsync(machine))
                 return false;
-            }
 
             try
             {
-                System.Diagnostics.Debug.WriteLine("Calling repository UpdateMachineAsync...");
-                await _machineRepository.UpdateMachineAsync(machine);
-                System.Diagnostics.Debug.WriteLine("Machine updated successfully");
+                if (machine.MachineId <= 0)
+                {
+                    throw new ArgumentException("Machine ID must be greater than 0", nameof(machine));
+                }
+                
+                machine.UpdatedAt = DateTime.Now;
+                
+                var existingMachine = await _context.Machines
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(m => m.MachineId == machine.MachineId);
+                
+                if (existingMachine == null)
+                {
+                    throw new InvalidOperationException($"Machine with ID {machine.MachineId} not found");
+                }
+                
+                var sql = @"
+                    UPDATE Machines 
+                    SET Name = @Name, Description = @Description, SerialNumber = @SerialNumber,
+                        Model = @Model, Manufacturer = @Manufacturer, InstallationDate = @InstallationDate,
+                        Status = @Status, Location = @Location, Department = @Department,
+                        LastMaintenanceDate = @LastMaintenanceDate, NextMaintenanceDate = @NextMaintenanceDate,
+                        MaintenanceIntervalDays = @MaintenanceIntervalDays, Notes = @Notes,
+                        ImagePath = @ImagePath, UpdatedAt = @UpdatedAt
+                    WHERE MachineId = @MachineId";
+                
+                var parameters = new[]
+                {
+                    new SqlParameter("@MachineId", machine.MachineId),
+                    new SqlParameter("@Name", machine.Name),
+                    new SqlParameter("@Description", (object)machine.Description ?? DBNull.Value),
+                    new SqlParameter("@SerialNumber", machine.SerialNumber),
+                    new SqlParameter("@Model", machine.Model),
+                    new SqlParameter("@Manufacturer", (object)machine.Manufacturer ?? DBNull.Value),
+                    new SqlParameter("@InstallationDate", machine.InstallationDate),
+                    new SqlParameter("@Status", (int)machine.Status),
+                    new SqlParameter("@Location", (object)machine.Location ?? DBNull.Value),
+                    new SqlParameter("@Department", (object)machine.Department ?? DBNull.Value),
+                    new SqlParameter("@LastMaintenanceDate", machine.LastMaintenanceDate),
+                    new SqlParameter("@NextMaintenanceDate", machine.NextMaintenanceDate),
+                    new SqlParameter("@MaintenanceIntervalDays", machine.MaintenanceIntervalDays),
+                    new SqlParameter("@Notes", (object)machine.Notes ?? DBNull.Value),
+                    new SqlParameter("@ImagePath", (object)machine.ImagePath ?? DBNull.Value),
+                    new SqlParameter("@UpdatedAt", machine.UpdatedAt)
+                };
+                
+                var rowsAffected = await _context.Database.ExecuteSqlRawAsync(sql, parameters);
+                
+                if (rowsAffected == 0)
+                {
+                    throw new InvalidOperationException($"No rows were updated for machine ID {machine.MachineId}");
+                }
+                
                 await CheckAndCreateMaintenanceAlertsAsync(machine);
                 return true;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error updating machine: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
                 throw new InvalidOperationException("Failed to update machine", ex);
             }
-        }
-
-        /// <summary>
-        /// Validates machine data according to business rules before saving.
-        /// This method ensures that all required fields are present and valid,
-        /// and checks for duplicate serial numbers to maintain data integrity.
-        /// </summary>
-        /// <param name="machine">The machine object to validate.</param>
-        /// <returns>True if the machine data is valid; otherwise, false.</returns>
-        /// <remarks>
-        /// Validation rules:
-        /// - Name, SerialNumber, Model, and Manufacturer are required
-        /// - Installation date cannot be in the future
-        /// - Next maintenance date must be after last maintenance date
-        /// - Serial number must be unique across all machines
-        /// </remarks>
-        public async Task<bool> ValidateMachineDataAsync(Machine machine)
-        {
-            if (machine == null)
-            {
-                System.Diagnostics.Debug.WriteLine("Validation failed: Machine is null");
-                return false;
-            }
-
-            // Validate required fields
-            if (string.IsNullOrWhiteSpace(machine.Name))
-            {
-                System.Diagnostics.Debug.WriteLine("Validation failed: Name is empty");
-                return false;
-            }
-
-            if (string.IsNullOrWhiteSpace(machine.SerialNumber))
-            {
-                System.Diagnostics.Debug.WriteLine("Validation failed: SerialNumber is empty");
-                return false;
-            }
-
-            if (string.IsNullOrWhiteSpace(machine.Model))
-            {
-                System.Diagnostics.Debug.WriteLine("Validation failed: Model is empty");
-                return false;
-            }
-
-            if (string.IsNullOrWhiteSpace(machine.Manufacturer))
-            {
-                System.Diagnostics.Debug.WriteLine("Validation failed: Manufacturer is empty");
-                return false;
-            }
-
-            // Validate dates
-            if (machine.InstallationDate > DateTime.Today)
-            {
-                System.Diagnostics.Debug.WriteLine($"Validation failed: InstallationDate {machine.InstallationDate} is in the future");
-                return false;
-            }
-
-            // Only validate maintenance dates if they are not default values
-            if (machine.LastMaintenanceDate != DateTime.MinValue && machine.NextMaintenanceDate != DateTime.MinValue)
-            {
-                if (machine.NextMaintenanceDate < machine.LastMaintenanceDate)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Validation failed: NextMaintenanceDate {machine.NextMaintenanceDate} is before LastMaintenanceDate {machine.LastMaintenanceDate}");
-                    return false;
-                }
-            }
-
-            // Check for duplicate serial number (excluding the current machine being updated)
-            try
-            {
-                var existingMachines = await _machineRepository.GetAllMachinesAsync();
-                var duplicateSerial = existingMachines.Any(m => 
-                    m.SerialNumber.Equals(machine.SerialNumber, StringComparison.OrdinalIgnoreCase) && 
-                    m.MachineId != machine.MachineId);
-                
-                if (duplicateSerial)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Validation failed: Duplicate serial number found: {machine.SerialNumber}");
-                    return false;
-                }
-            }
-            catch (Exception ex)
-            {
-                // Log the exception for debugging
-                System.Diagnostics.Debug.WriteLine($"Error checking for duplicate serial numbers: {ex.Message}");
-                // If we can't check for duplicates, assume it's valid to avoid blocking updates
-                return true;
-            }
-
-            System.Diagnostics.Debug.WriteLine("Machine validation passed successfully");
-            return true;
         }
 
         /// <summary>
@@ -232,7 +194,7 @@ namespace goodwin_winForm.Controllers
         /// <param name="machine">The machine to check for maintenance alerts.</param>
         private async Task CheckAndCreateMaintenanceAlertsAsync(Machine machine)
         {
-            if (_alertController == null)
+            if (_alertRepository == null)
                 return;
 
             try
@@ -240,7 +202,7 @@ namespace goodwin_winForm.Controllers
                 // Check if maintenance is overdue (NextMaintenanceDate < Today)
                 if (machine.NextMaintenanceDate != DateTime.MinValue && machine.NextMaintenanceDate < DateTime.Today)
                 {
-                    await _alertController.CreateMaintenanceOverdueAlertAsync(
+                    await _alertRepository.CreateMaintenanceOverdueAlertAsync(
                         machine.MachineId, 
                         machine.Name, 
                         machine.NextMaintenanceDate);
@@ -250,7 +212,7 @@ namespace goodwin_winForm.Controllers
                          machine.NextMaintenanceDate <= DateTime.Today.AddDays(7) &&
                          machine.NextMaintenanceDate >= DateTime.Today)
                 {
-                    await _alertController.CreateMaintenanceDueAlertAsync(
+                    await _alertRepository.CreateMaintenanceDueAlertAsync(
                         machine.MachineId, 
                         machine.Name, 
                         machine.NextMaintenanceDate);
