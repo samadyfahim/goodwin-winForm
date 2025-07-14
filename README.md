@@ -2,6 +2,10 @@
 
 A Windows Forms application for monitoring machine status and tracking maintenance activities.
 
+## Demo
+
+https://github.com/user-attachments/assets/412d89eb-08e0-43f9-8701-ebe74e25bd76
+
 ## Database Structure
 
 The application uses Entity Framework Core with SQL Server to manage the following entities:
